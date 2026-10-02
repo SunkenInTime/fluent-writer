@@ -2,6 +2,20 @@
 
 A quiet macOS writing app built around focus: one column of prose, sentence and paragraph focus, typewriter scrolling, Markdown that stays out of the way, and drafts that are never lost.
 
+## Screenshots
+
+![The writing surface in light mode](docs/screenshots/editor-light.png)
+
+| Sentence focus | Paragraph focus |
+| --- | --- |
+| ![Sentence focus dims everything but the current sentence](docs/screenshots/focus-sentence.png) | ![Paragraph focus dims everything but the current paragraph](docs/screenshots/focus-paragraph.png) |
+
+![The writing surface in dark mode](docs/screenshots/editor-dark.png)
+
+Assist suggests an edit as a word diff. Your draft only changes if you press Accept.
+
+![Assist panel showing feedback and a proposed edit](docs/screenshots/assist-diff.png)
+
 ## Build and run
 
 Requires macOS 14+ and Xcode 16+ (Swift 6).
