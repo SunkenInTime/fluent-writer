@@ -1,0 +1,6 @@
+.build/
+build/
+*.xcodeproj/
+.swiftpm/
+bridge/claude/node_modules/
+.DS_Store
