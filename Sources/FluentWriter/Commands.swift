@@ -177,7 +177,8 @@ extension EditorController: NSMenuItemValidation {
         case #selector(toggleSpellCheck(_:)): item.state = Preferences.spellCheck ? .on : .off
         case #selector(biggerText(_:)): return styler.fontSize < (Theme.textSizes.last ?? 32)
         case #selector(smallerText(_:)): return styler.fontSize > (Theme.textSizes.first ?? 14)
-        case #selector(revealInFinder(_:)): return draft.url != nil || !draft.body.isEmpty
+        case #selector(toggleFileSidebar(_:)): item.title = sidebarVisible ? "Hide Sidebar" : "Show Sidebar"
+        case #selector(revealInFinder(_:)): return draft.remote == nil && (draft.url != nil || !draft.body.isEmpty)
         case #selector(copyForTwitter(_:)):
             item.title = textView.selectedRange().length > 0 ? "Copy Selection for Twitter" : "Copy for Twitter"
             return !textView.string.isEmpty

@@ -34,6 +34,8 @@ enum MainMenu {
             item("New", #selector(EditorController.newDraft(_:)), "n"),
             item("Open…", #selector(EditorController.openDraftPicker(_:)), "o"),
             item("Open Other File…", #selector(EditorController.openOtherFile(_:)), "o", [.command, .shift]),
+            item("Open Folder…", #selector(EditorController.openFolder(_:)), "o", [.command, .option]),
+            item("Open over SSH…", #selector(EditorController.openOverSSH(_:)), "o", [.command, .control]),
             .separator(),
             item("Save", #selector(EditorController.saveNow(_:)), "s"),
             item("Save As…", #selector(EditorController.saveDraftAs(_:)), "s", [.command, .shift]),
@@ -106,6 +108,9 @@ enum MainMenu {
             return i
         }
         main.addItem(submenu("View", [
+            item("Show Sidebar", #selector(EditorController.toggleFileSidebar(_:)), "s", [.command, .control]),
+            item("Recent Files", #selector(EditorController.showRecentFiles(_:)), "e", [.command, .shift]),
+            .separator(),
             item("Toggle Focus", #selector(EditorController.toggleFocus(_:)), "d"),
             submenu("Focus", [
                 item("Off", #selector(EditorController.focusOff(_:)), "0", [.command, .control]),

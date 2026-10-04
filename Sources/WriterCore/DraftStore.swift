@@ -7,6 +7,9 @@ public struct DraftRecord: Codable, Equatable, Sendable {
     public var selectionLocation: Int
     public var selectionLength: Int
     public var lastOpened: Date
+    public var remote: RemoteLocation?
+    /// The local mirror has changes the remote copy doesn't have yet.
+    public var remoteUploadPending: Bool?
 }
 
 struct LibraryState: Codable {
@@ -30,6 +33,7 @@ public struct DraftSummary: Equatable, Sendable {
     public var title: String
     public var modified: Date
     public var preview: String
+    public var remote: RemoteLocation?
 }
 
 public final class DraftDocument {
@@ -42,6 +46,10 @@ public final class DraftDocument {
     public internal(set) var savedBody: String
     /// Set when the body was restored from a recovery snapshot rather than the file.
     public internal(set) var recoveredAt: Date?
+    /// Set for files edited over SSH; `url` is then the local mirror.
+    public internal(set) var remote: RemoteLocation?
+    /// The mirror holds saved text that hasn't reached the remote file yet.
+    public internal(set) var remoteUploadPending = false
 
     init(id: UUID = UUID(), url: URL?, body: String, savedBody: String, title: String, hasManualTitle: Bool, selection: NSRange) {
         self.id = id
@@ -66,6 +74,7 @@ public final class DraftDocument {
 public struct DraftStoreError: LocalizedError {
     public var message: String
     public var errorDescription: String? { message }
+    public init(message: String) { self.message = message }
 }
 
 public final class DraftLibrary {
@@ -73,6 +82,7 @@ public final class DraftLibrary {
     public let supportDirectory: URL
     var recoveryDirectory: URL { supportDirectory.appendingPathComponent("Recovery", isDirectory: true) }
     var stateURL: URL { supportDirectory.appendingPathComponent("state.json") }
+    var remoteMirrorDirectory: URL { supportDirectory.appendingPathComponent("Remote", isDirectory: true) }
     private var state = LibraryState()
     public static let fileExtensions: Set<String> = ["md", "markdown", "txt", "text"]
 
@@ -126,6 +136,8 @@ public final class DraftLibrary {
         let loc = min(record?.selectionLocation ?? length, length)
         let len = min(record?.selectionLength ?? 0, length - loc)
         let doc = DraftDocument(url: standardized, body: body, savedBody: body, title: title, hasManualTitle: record?.hasManualTitle ?? false, selection: NSRange(location: loc, length: len))
+        doc.remote = record?.remote
+        doc.remoteUploadPending = record?.remoteUploadPending == true
         if let snapshot = recoverySnapshots().first(where: { $0.path == standardized.path }) {
             if snapshot.body != body {
                 doc.body = snapshot.body
@@ -175,14 +187,17 @@ public final class DraftLibrary {
     @discardableResult
     public func save(_ doc: DraftDocument) throws -> SaveResult {
         if doc.isEmptyUntitled { return .unchanged }
-        if doc.url != nil && !doc.isDirty && doc.recoveredAt == nil { return .unchanged }
+        if doc.url != nil && !doc.isDirty && doc.recoveredAt == nil && !doc.remoteUploadPending { return .unchanged }
         let body = doc.body
         do {
             if doc.url == nil {
                 doc.url = uniqueURL(forTitle: doc.title, in: draftsDirectory, excluding: nil)
             }
             let url = doc.url!
-            try AtomicFile.write(Data(body.utf8), to: url)
+            if doc.isDirty || doc.recoveredAt != nil || !FileManager.default.fileExists(atPath: url.path) {
+                try AtomicFile.write(Data(body.utf8), to: url)
+                if doc.remote != nil { doc.remoteUploadPending = true }
+            }
             doc.savedBody = body
             doc.recoveredAt = nil
             discardRecovery(for: doc.id)
@@ -230,7 +245,7 @@ public final class DraftLibrary {
             doc.title = trimmed
             doc.hasManualTitle = true
         }
-        guard let url = doc.url else { return }
+        guard let url = doc.url, doc.remote == nil else { markOpened(doc); return }
         let target = uniqueURL(forTitle: doc.title, in: url.deletingLastPathComponent(), excluding: url, pathExtension: url.pathExtension)
         if target != url {
             do {
@@ -272,7 +287,7 @@ public final class DraftLibrary {
 
     public func markOpened(_ doc: DraftDocument) {
         guard let url = doc.url else { return }
-        state.records[url.path] = DraftRecord(path: url.path, title: doc.title, hasManualTitle: doc.hasManualTitle, selectionLocation: doc.selection.location, selectionLength: doc.selection.length, lastOpened: Date())
+        state.records[url.path] = DraftRecord(path: url.path, title: doc.title, hasManualTitle: doc.hasManualTitle, selectionLocation: doc.selection.location, selectionLength: doc.selection.length, lastOpened: Date(), remote: doc.remote, remoteUploadPending: doc.remoteUploadPending ? true : nil)
         state.lastOpenedPath = url.path
         persistState()
     }
@@ -318,10 +333,56 @@ public final class DraftLibrary {
             let record = state.records[url.path]
             let opened = record?.lastOpened ?? .distantPast
             let preview = previewText(url)
-            summaries.append(DraftSummary(url: url, title: record?.title ?? url.deletingPathExtension().lastPathComponent, modified: max(modified, opened), preview: preview))
+            let title = record?.title ?? record?.remote?.name ?? url.deletingPathExtension().lastPathComponent
+            summaries.append(DraftSummary(url: url, title: title, modified: max(modified, opened), preview: preview, remote: record?.remote))
         }
         summaries.sort { $0.modified > $1.modified }
         return Array(summaries.prefix(limit))
+    }
+
+    // MARK: Remote files
+
+    /// Where the local copy of a remote file lives. Saves land here first, then upload.
+    public func mirrorURL(for loc: RemoteLocation) -> URL {
+        let hostDir = (loc.port.map { "\(loc.host)-\($0)" } ?? loc.host).replacingOccurrences(of: "/", with: "_")
+        var path = loc.path
+        let root: String
+        if path == "~" || path.hasPrefix("~/") { root = "home"; path = String(path.dropFirst(min(2, path.count))) } else { root = "root" }
+        let components = path.split(separator: "/").map(String.init).filter { $0 != "." && $0 != ".." && !$0.isEmpty }
+        var url = remoteMirrorDirectory.appendingPathComponent(hostDir, isDirectory: true).appendingPathComponent(root, isDirectory: true)
+        for c in components { url.appendPathComponent(c) }
+        return url.standardizedFileURL
+    }
+
+    public func record(for loc: RemoteLocation) -> DraftRecord? {
+        state.records[mirrorURL(for: loc).path]
+    }
+
+    /// Opens a remote file from freshly fetched contents. Local edits that never reached the remote are kept instead.
+    public func openRemote(_ loc: RemoteLocation, contents: Data) throws -> DraftDocument {
+        let mirror = mirrorURL(for: loc)
+        let pending = state.records[mirror.path]?.remoteUploadPending == true && FileManager.default.fileExists(atPath: mirror.path)
+        if !pending {
+            try FileManager.default.createDirectory(at: mirror.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try AtomicFile.write(contents, to: mirror)
+        }
+        let doc = try open(mirror)
+        doc.remote = loc
+        doc.remoteUploadPending = pending
+        if !doc.hasManualTitle { doc.title = loc.name }
+        markOpened(doc)
+        return doc
+    }
+
+    /// Records the result of uploading `body`. The flag clears only if nothing newer was saved since.
+    public func remoteUploadFinished(_ doc: DraftDocument, uploadedBody: String, succeeded: Bool) {
+        guard doc.remote != nil else { return }
+        if succeeded && uploadedBody == doc.savedBody { doc.remoteUploadPending = false }
+        if let url = doc.url, var record = state.records[url.path] {
+            record.remoteUploadPending = doc.remoteUploadPending ? true : nil
+            state.records[url.path] = record
+            persistState()
+        }
     }
 
     private func previewText(_ url: URL) -> String {
