@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let editor else { return .terminateNow }
         editor.assist?.stop()
-        return editor.flush() || editor.confirmLeavingDocument() ? .terminateNow : .terminateCancel
+        return editor.confirmLeavingDocument() ? .terminateNow : .terminateCancel
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

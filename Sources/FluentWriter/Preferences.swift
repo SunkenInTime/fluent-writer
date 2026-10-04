@@ -34,4 +34,36 @@ enum Preferences {
         get { d.object(forKey: "spellCheck") as? Bool ?? true }
         set { d.set(newValue, forKey: "spellCheck") }
     }
+
+    static var showSidebar: Bool {
+        get { d.bool(forKey: "showSidebar") }
+        set { d.set(newValue, forKey: "showSidebar") }
+    }
+
+    static var sidebarMode: SidebarController.Mode {
+        get { SidebarController.Mode(rawValue: d.string(forKey: "sidebarMode") ?? "") ?? .recent }
+        set { d.set(newValue.rawValue, forKey: "sidebarMode") }
+    }
+
+    static var folderRoot: FolderRoot? {
+        get {
+            if let path = d.string(forKey: "folderLocal") { return .local(URL(fileURLWithPath: path, isDirectory: true)) }
+            if let raw = d.string(forKey: "folderRemote"), let loc = RemoteLocation.parse(raw) { return .remote(loc) }
+            return nil
+        }
+        set {
+            d.removeObject(forKey: "folderLocal")
+            d.removeObject(forKey: "folderRemote")
+            switch newValue {
+            case let .local(url): d.set(url.path, forKey: "folderLocal")
+            case let .remote(loc): d.set(loc.display, forKey: "folderRemote")
+            case nil: break
+            }
+        }
+    }
+
+    static var lastSSHLocation: String {
+        get { d.string(forKey: "lastSSHLocation") ?? "" }
+        set { d.set(newValue, forKey: "lastSSHLocation") }
+    }
 }

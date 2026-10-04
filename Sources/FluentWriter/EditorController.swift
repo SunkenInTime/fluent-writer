@@ -69,6 +69,13 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
     private var transientTimer: Timer?
     private var lastKeyboardEdit = false
 
+    var sidebar: SidebarController!
+    var sidebarVisible: Bool { sidebar.panel.superview != nil }
+    let sidebarButton = NSButton()
+    let uploader = RemoteUploader()
+    var remoteStatus: RemoteStatus = .idle
+    var remoteOpenGeneration = 0
+
     var assist: AssistController?
     let assistWidth: CGFloat = 380
     var assistVisible: Bool { assist?.panel.superview != nil }
@@ -99,10 +106,14 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
             backing: .buffered, defer: false
         )
         super.init(window: window)
+        sidebar = SidebarController(editor: self, library: library)
         configureWindow(window)
         configureTextView()
+        uploader.onFinish = { [weak self] doc, body, error in self?.uploadFinished(doc, body: body, error: error) }
         layoutChrome()
+        if Preferences.showSidebar { canvas.addSubview(sidebar.panel); frameChanged() }
         load(document)
+        sidebar.reload()
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -182,6 +193,14 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         titleField.toolTip = "Click to rename"
         topBar.addSubview(titleField)
 
+        sidebarButton.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")
+        sidebarButton.isBordered = false
+        sidebarButton.contentTintColor = Theme.quiet
+        sidebarButton.target = self
+        sidebarButton.action = #selector(toggleFileSidebar(_:))
+        sidebarButton.toolTip = "Show or hide the sidebar (⌃⌘S)"
+        topBar.addSubview(sidebarButton)
+
         for label in [statusLabel, countsLabel, focusLabel] {
             label.font = Theme.uiFont(size: 12)
             label.textColor = Theme.quiet
@@ -202,11 +221,16 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
     @objc func frameChanged() {
         let b = canvas.bounds
         let panelW: CGFloat = assistVisible ? assistWidth : 0
-        let editorW = b.width - panelW
-        topBar.frame = NSRect(x: 0, y: 0, width: editorW, height: Self.topBarHeight)
-        footer.frame = NSRect(x: 0, y: b.height - Self.footerHeight, width: editorW, height: Self.footerHeight)
-        scrollView.frame = NSRect(x: 0, y: Self.topBarHeight, width: editorW, height: b.height - Self.topBarHeight)
-        assist?.panel.frame = NSRect(x: editorW, y: 0, width: panelW, height: b.height)
+        let sideW: CGFloat = sidebarVisible ? min(SidebarController.width, max(0, b.width - panelW - 320)) : 0
+        let editorW = b.width - panelW - sideW
+        sidebar.panel.frame = NSRect(x: 0, y: 0, width: sideW, height: b.height)
+        sidebar.layout()
+        topBar.frame = NSRect(x: sideW, y: 0, width: editorW, height: Self.topBarHeight)
+        footer.frame = NSRect(x: sideW, y: b.height - Self.footerHeight, width: editorW, height: Self.footerHeight)
+        scrollView.frame = NSRect(x: sideW, y: Self.topBarHeight, width: editorW, height: b.height - Self.topBarHeight)
+        assist?.panel.frame = NSRect(x: sideW + editorW, y: 0, width: panelW, height: b.height)
+        let fullScreen = window?.styleMask.contains(.fullScreen) == true
+        sidebarButton.frame = NSRect(x: sideW > 0 || fullScreen ? 14 : 80, y: 11, width: 20, height: 18)
         let titleW = min(420, editorW - 180)
         titleField.frame = NSRect(x: (editorW - titleW) / 2, y: 11, width: titleW, height: 18)
         let pad: CGFloat = 20
@@ -269,11 +293,13 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         let sel = NSRange(location: min(doc.selection.location, len), length: min(doc.selection.length, max(0, len - doc.selection.location)))
         textView.setSelectedRange(sel)
         loadingDocument = false
+        remoteStatus = .idle
         if doc.recoveredAt != nil {
             saveState = .recovered
             scheduleAutosave(after: 0.2)
         } else {
             saveState = .saved
+            if doc.remoteUploadPending { scheduleAutosave(after: 0.2) }
         }
         updateTitle()
         updateStatus()
@@ -287,7 +313,8 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
             else { self.ensureCaretReadable(animated: false) }
         }
         assist?.documentChanged()
-        window?.representedURL = doc.url
+        sidebar?.currentDocumentChanged()
+        window?.representedURL = doc.remote == nil ? doc.url : nil
         window?.title = doc.title
         window?.makeFirstResponder(textView)
     }
@@ -299,8 +326,14 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         autosaveTimer = nil
         syncDocumentFromView()
         do {
-            try library.save(draft)
+            let result = try library.save(draft)
             library.rememberSelection(draft)
+            if draft.remote != nil && draft.remoteUploadPending {
+                remoteStatus = .uploading
+                uploader.upload(draft, body: draft.savedBody)
+            } else if result == .saved && sidebar.mode == .recent {
+                sidebar.currentDocumentChanged()
+            }
             if saveState != .saved { saveState = .saved; updateStatus() }
             updateTitle()
             return true
@@ -313,7 +346,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
 
     /// Flushes before replacing the current draft; asks before leaving text that couldn't be saved.
     func confirmLeavingDocument() -> Bool {
-        if flush() { return true }
+        if flush() { return confirmRemoteUploaded() }
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "This draft couldn't be saved."
@@ -367,7 +400,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
             titleField.textColor = draft.hasManualTitle ? Theme.text.withAlphaComponent(0.75) : Theme.quiet
         }
         window?.title = draft.title
-        window?.representedURL = draft.url
+        window?.representedURL = draft.remote == nil ? draft.url : nil
     }
 
     func updateStatus() {
@@ -377,6 +410,25 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
             return
         }
         switch saveState {
+        case .saved where draft.remote != nil:
+            let host = draft.remote?.hostName ?? ""
+            statusLabel.toolTip = draft.remote?.display
+            switch remoteStatus {
+            case .idle, .uploaded:
+                statusLabel.stringValue = draft.remoteUploadPending ? "Saved locally · not yet on \(host)" : "Saved to \(host)"
+                statusLabel.textColor = Theme.quiet
+            case .uploading:
+                statusLabel.stringValue = "Saving to \(host)…"
+                statusLabel.textColor = Theme.quiet
+            case .offline:
+                statusLabel.stringValue = "Offline · editing the local copy"
+                statusLabel.textColor = Theme.quiet
+            case let .failed(message):
+                statusLabel.stringValue = "Not on \(host) yet — \(message)"
+                statusLabel.textColor = Theme.warning
+                statusLabel.toolTip = message
+                showChrome(autoHide: false)
+            }
         case .saved:
             statusLabel.stringValue = draft.url == nil ? "" : "Saved"
             statusLabel.textColor = Theme.quiet
@@ -574,14 +626,14 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
                 guard let self, self.window?.isKeyWindow == true, self.window?.firstResponder === self.textView else { return }
                 if case .failed = self.saveState { return }
                 let mouse = self.canvas.convert(self.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
-                if self.topBar.frame.contains(mouse) || self.footer.frame.contains(mouse) { return }
+                if self.topBar.frame.contains(mouse) || self.footer.frame.contains(mouse) || self.sidebar.panel.frame.contains(mouse) { return }
                 self.hideChrome()
             }
         }
     }
 
     private func animateChrome(to alpha: CGFloat) {
-        let views: [NSView] = [titleField, statusLabel, countsLabel, focusLabel] + trafficLights()
+        let views: [NSView] = [titleField, statusLabel, countsLabel, focusLabel, sidebarButton] + (sidebarVisible ? [] : trafficLights())
         let duration = reduceMotion ? 0 : (alpha > 0 ? 0.25 : 0.6)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = duration
@@ -715,7 +767,13 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         showChrome(autoHide: false)
     }
 
-    func windowDidBecomeKey(_ notification: Notification) { showChrome(autoHide: true) }
+    func windowDidBecomeKey(_ notification: Notification) {
+        showChrome(autoHide: true)
+        if sidebarVisible { sidebar.reload() }
+    }
+
+    func windowDidEnterFullScreen(_ notification: Notification) { frameChanged() }
+    func windowDidExitFullScreen(_ notification: Notification) { frameChanged() }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         return confirmLeavingDocument()

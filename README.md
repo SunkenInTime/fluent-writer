@@ -41,8 +41,22 @@ For the optional Claude assistant, install the bridge dependencies once before b
 | Bigger / smaller text | ⌘+ / ⌘− |
 | Copy for Twitter (clean plain text) | ⇧⌘C |
 | Open recent | ⌘O |
+| Show / hide sidebar | ⌃⌘S |
+| Recent files in the sidebar | ⇧⌘E |
+| Open folder | ⌥⌘O |
+| Open over SSH | ⌃⌘O |
 
 Drafts live in `~/Documents/Fluent Writer` as plain Markdown. Saves are atomic, unsaved text is journaled for recovery, and the cursor position is restored on reopen.
+
+## Sidebar, folders, and SSH
+
+The sidebar has two views. **Recent** lists files you've opened, local or remote. **Folder** lists the Markdown and text files in a folder you've opened. Click a file to open it, click a subfolder to go into it, and click `..` to go back up.
+
+**Open over SSH…** takes `host:path`, `user@host:~/notes/draft.md`, or `ssh://user@host:2222/srv/notes`. A file opens in the editor and a folder opens in the sidebar. Fluent Writer runs the system `ssh` with your `~/.ssh/config`, keys, and agent. It can't answer password prompts, so key-based login has to work (`ssh -o BatchMode=yes host true`).
+
+Edits to a remote file are saved to a local copy first, then uploaded. The upload writes a temporary file beside the original and renames it into place. The footer shows when your text has reached the server. If an upload fails, your edits stay on this Mac and are sent the next time you open the file. If the server can't be reached when you open a file you've edited before, the local copy opens instead.
+
+To run the SSH round-trip test against a real server: `FLUENT_WRITER_SSH_TEST_DIR=host:/tmp/fw swift test --filter RemoteTests`.
 
 ## Assist (optional)
 
