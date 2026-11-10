@@ -8,6 +8,7 @@ let package = Package(
         .executable(name: "FluentWriter", targets: ["FluentWriter"]),
         .library(name: "WriterCore", targets: ["WriterCore"]),
         .library(name: "WriterAgents", targets: ["WriterAgents"]),
+        .executable(name: "fluent-writer-mcp", targets: ["FluentWriterMCP"]),
     ],
     targets: [
         .target(name: "WriterCore"),
@@ -17,6 +18,7 @@ let package = Package(
             dependencies: ["WriterCore", "WriterAgents"],
             resources: [.copy("Resources/Fonts")]
         ),
+        .executableTarget(name: "FluentWriterMCP", dependencies: ["WriterCore", "WriterAgents"]),
         .testTarget(name: "WriterCoreTests", dependencies: ["WriterCore"]),
         .testTarget(name: "WriterAgentsTests", dependencies: ["WriterAgents", "WriterCore"]),
     ],

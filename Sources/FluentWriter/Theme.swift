@@ -49,6 +49,13 @@ enum Theme {
     static let insertedBackground = dynamic(light: rgb(30, 160, 80, 0.13), dark: rgb(90, 200, 120, 0.18))
     static let deleted = dynamic(light: rgb(180, 50, 40), dark: rgb(235, 120, 105))
     static let deletedBackground = dynamic(light: rgb(210, 60, 40, 0.11), dark: rgb(230, 90, 70, 0.17))
+    static let commentHighlight = dynamic(light: rgb(255, 196, 0, 0.20), dark: rgb(255, 196, 40, 0.16))
+    static let commentHighlightActive = dynamic(light: rgb(255, 180, 0, 0.42), dark: rgb(255, 190, 40, 0.34))
+    static let card = dynamic(light: rgb(255, 255, 255), dark: rgb(34, 34, 34))
+    static let cardHover = dynamic(light: rgb(252, 252, 251), dark: rgb(40, 40, 40))
+    static let cardSelected = dynamic(light: rgb(234, 246, 253), dark: rgb(26, 54, 70))
+    static let icon = dynamic(light: rgb(120, 118, 116), dark: rgb(172, 172, 170))
+    static let banner = dynamic(light: rgb(238, 238, 236), dark: rgb(36, 36, 36))
 
     static let defaultTextSize: CGFloat = 19
     static let textSizes: [CGFloat] = [14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 32]

@@ -48,6 +48,10 @@ For the optional Claude assistant, install the bridge dependencies once before b
 
 Drafts live in `~/Documents/Fluent Writer` as plain Markdown. Saves are atomic, unsaved text is journaled for recovery, and the cursor position is restored on reopen.
 
+### Images
+
+Paste an image (screenshots work), drag one in, or use **Format → Image…** (⇧⌘I). The file is copied into an `images` folder next to the draft and referenced with ordinary Markdown, `![alt](images/photo.png)`. Any line holding just an image shows a framed preview underneath it, sized to the text column, and fades with the rest of the text in focus mode. The Markdown line stays editable above it. Click a preview to put the caret on its line, double-click to open the image, or right-click to show it in Finder or copy it. Images on the web (`https://…`) load too. Files opened over SSH show a placeholder instead.
+
 ## Sidebar, folders, and SSH
 
 The sidebar has two views. **Recent** lists files you've opened, local or remote. **Folder** lists the Markdown and text files in a folder you've opened. Click a file to open it, click a subfolder to go into it, and click `..` to go back up.
@@ -60,9 +64,42 @@ To run the SSH round-trip test against a real server: `FLUENT_WRITER_SSH_TEST_DI
 
 ## Assist (optional)
 
-Assist (⌘J for Codex, ⇧⌘J for Claude, ⌥⌘J to toggle) sends only the selection, or the full draft when nothing is selected, and only when you press Send. Agents run in an empty scratch directory with read-only sandboxes and every tool request declined. Suggestions appear as a word diff; Accept applies them as one undoable edit, and editing the sent text first marks the suggestion out of date.
+Assist (⌘J for Codex, ⇧⌘J for Claude, ⌥⌘J to toggle) sends the draft, plus your selection as the part to focus on, only when you press Send. Agents run in an empty scratch directory with read-only sandboxes and every tool request declined.
+
+The agent replies with edits anchored to text in the draft, so it can change any passage, insert text after one, or add a paragraph at the end without you selecting anything first.
 
 - Codex: install the `codex` CLI and run `codex login`.
 - Claude: run `claude` once and sign in (the bundled SDK ships its own Claude Code binary).
 
 `FLUENT_WRITER_AGENT_FIXTURE=/path/to/reply.txt` replays a canned reply instead of calling a provider, for offline UI testing.
+
+### Comments
+
+Select text, or put the caret on a line, and press ⌥⌘M (or right-click → Comment). The text gets a highlight and the comment appears under **Comments** (⇧⌘M). Leave as many as you like, then press **Send N Comments** to have the agent work through them all. It edits the text where a comment asks for a change and replies where it asks a question. Comments follow their text as you edit, and resolve when you use a version that addresses them.
+
+### Versions
+
+Every agent reply that changes the text becomes a version instead of touching your draft. The editor shows it as an inline diff (green added, red struck through), with a bar on top:
+
+| Action | Key |
+| --- | --- |
+| Older / newer version | ← / → (or ⌥⌘← / ⌥⌘→ from the draft) |
+| Use the version shown | ↩ (⌥⌘↩) |
+| Back to your draft | esc |
+| List all versions | ⌥⌘V |
+
+Using a version keeps your current draft as a version too, so you can always switch back. If you send a request while previewing a version, the reply builds on that version.
+
+### Outside agents (MCP)
+
+**Assist → Connect an Outside Agent…** registers the bundled `fluent-writer-mcp` server with Claude Code or Codex, or shows the command:
+
+```sh
+claude mcp add --scope user fluent-writer -- "/Applications/Fluent Writer.app/Contents/MacOS/fluent-writer-mcp" --support "$HOME/Library/Application Support/Fluent Writer"
+```
+
+The agent can then read the open draft, your selection, comments, versions and Assist history (`get_context`, `read_document`, `list_comments`, `list_versions`, `get_assist_history`, `list_documents`). It can leave or answer comments and propose versions (`add_comment`, `reply_to_comment`, `resolve_comment`, `propose_version`). Proposed versions show up in the app for you to preview and choose, the same as Assist's. Comments, versions and history are kept in `~/Library/Application Support/Fluent Writer/Notes`, so drafts stay plain Markdown.
+
+## Dev build
+
+`script/build-app.sh --dev` builds `build/Fluent Writer Dev.app`. It has its own bundle id, settings, drafts folder (`~/Documents/Fluent Writer Dev`) and support folder, so you can try changes while writing in the regular app. Running the binary straight from `swift run` also uses the dev folders.

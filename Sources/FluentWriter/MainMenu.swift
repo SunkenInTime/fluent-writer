@@ -1,4 +1,5 @@
 import AppKit
+import WriterCore
 
 enum MainMenu {
     static func item(_ title: String, _ action: Selector?, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command, tag: Int = 0) -> NSMenuItem {
@@ -18,7 +19,7 @@ enum MainMenu {
 
     static func build() -> NSMenu {
         let main = NSMenu()
-        let name = "Fluent Writer"
+        let name = AppVariant.current.appName
 
         main.addItem(submenu(name, [
             item("About \(name)", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), ""),
@@ -88,6 +89,7 @@ enum MainMenu {
             item("Italic", #selector(EditorController.toggleItalic(_:)), "i"),
             item("Strikethrough", #selector(EditorController.toggleStrikethrough(_:)), "u", [.command, .shift]),
             item("Link", #selector(EditorController.insertLink(_:)), "k"),
+            item("Image…", #selector(EditorController.insertImageFromFile(_:)), "i", [.command, .shift]),
             .separator(),
             item("Heading 1", #selector(EditorController.formatHeading1(_:)), "1"),
             item("Heading 2", #selector(EditorController.formatHeading2(_:)), "2"),
@@ -129,10 +131,22 @@ enum MainMenu {
             item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]),
         ]))
 
+        let left = String(UnicodeScalar(NSLeftArrowFunctionKey)!)
+        let right = String(UnicodeScalar(NSRightArrowFunctionKey)!)
         main.addItem(submenu("Assist", [
             item("Ask Codex…", #selector(EditorController.askCodex(_:)), "j"),
             item("Ask Claude…", #selector(EditorController.askClaude(_:)), "j", [.command, .shift]),
             item("Show Assist", #selector(EditorController.openAssist(_:)), "j", [.command, .option]),
+            .separator(),
+            item("Add Comment…", #selector(EditorController.addComment(_:)), "m", [.command, .option]),
+            item("Show Comments", #selector(EditorController.showComments(_:)), "m", [.command, .shift]),
+            .separator(),
+            item("Show Versions", #selector(EditorController.showVersions(_:)), "v", [.command, .option]),
+            item("Older Version", #selector(EditorController.previousVersion(_:)), left, [.command, .option]),
+            item("Newer Version", #selector(EditorController.nextVersion(_:)), right, [.command, .option]),
+            item("Use This Version", #selector(EditorController.useShownVersion(_:)), "\r", [.command, .option]),
+            .separator(),
+            item("Connect an Outside Agent…", #selector(EditorController.connectOutsideAgent(_:))),
         ]))
 
         let window = submenu("Window", [

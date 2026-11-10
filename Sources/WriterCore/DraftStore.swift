@@ -101,11 +101,15 @@ public final class DraftLibrary {
         }
     }
 
-    public static func defaultLibrary() throws -> DraftLibrary {
-        let fm = FileManager.default
-        let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Fluent Writer", isDirectory: true)
-        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Fluent Writer", isDirectory: true)
-        return try DraftLibrary(draftsDirectory: docs, supportDirectory: support)
+    public static func defaultLibrary(variant: AppVariant = .current) throws -> DraftLibrary {
+        return try DraftLibrary(draftsDirectory: variant.draftsDirectory, supportDirectory: variant.supportDirectory)
+    }
+
+    /// Recently opened paths, newest first, read without touching anything on disk.
+    public static func recentPaths(supportDirectory: URL) -> [(path: String, title: String, lastOpened: Date)] {
+        guard let data = try? Data(contentsOf: supportDirectory.appendingPathComponent("state.json")),
+              let state = try? JSONDecoder().decode(LibraryState.self, from: data) else { return [] }
+        return state.records.values.sorted { $0.lastOpened > $1.lastOpened }.map { ($0.path, $0.title, $0.lastOpened) }
     }
 
     // MARK: Opening
