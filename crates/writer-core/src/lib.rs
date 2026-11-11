@@ -14,6 +14,7 @@ pub mod document_notes;
 pub mod draft_store;
 pub mod edit_placement;
 pub mod markdown;
+pub mod markdown_document;
 pub mod markdown_images;
 pub mod plain_text_exporter;
 pub mod remote;
@@ -42,6 +43,7 @@ pub use draft_store::{
 pub use edit_placement::{EditFailure, EditPlacement, EditPosition, PlacedEdit, ProposedEdit};
 pub use error::{DraftStoreError, Error, Result};
 pub use markdown::{MarkdownBlockKind, MarkdownInlineKind, MarkdownInlineSpan, MarkdownLine};
+pub use markdown_document::{LineSplice, MarkdownDocument};
 pub use markdown_images::{ImageSource, MarkdownImage};
 pub use offsets::{
     byte_range_to_utf16, byte_to_utf16, utf16_len, utf16_range_to_bytes, utf16_to_byte,

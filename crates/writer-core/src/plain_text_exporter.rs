@@ -17,35 +17,7 @@ static ESCAPE: LazyLock<Regex> =
 
 pub fn export(markdown: &str) -> String {
     let lines = markdown::parse(markdown);
-    let mut output: Vec<String> = Vec::new();
-    for line in &lines {
-        match line.kind {
-            MarkdownBlockKind::CodeFence => continue,
-            MarkdownBlockKind::CodeBlock => output.push(markdown[line.range.clone()].to_string()),
-            MarkdownBlockKind::Blank | MarkdownBlockKind::HorizontalRule => {
-                output.push(String::new())
-            }
-            MarkdownBlockKind::Heading { .. }
-            | MarkdownBlockKind::Paragraph
-            | MarkdownBlockKind::Blockquote => {
-                output.push(trimming_trailing_whitespace(&render_line(markdown, line)).to_string())
-            }
-            MarkdownBlockKind::BulletItem | MarkdownBlockKind::TaskItem { .. } => {
-                output.push(format!(
-                    "{}• {}",
-                    indent(markdown, line),
-                    trimming_trailing_whitespace(&render_line(markdown, line))
-                ))
-            }
-            MarkdownBlockKind::OrderedItem { number, delimiter } => output.push(format!(
-                "{}{}{} {}",
-                indent(markdown, line),
-                number,
-                delimiter,
-                trimming_trailing_whitespace(&render_line(markdown, line))
-            )),
-        }
-    }
+    let output = lines.iter().filter_map(|line| export_line(markdown, line));
     // Collapse runs of blank lines and trim the ends.
     let mut collapsed: Vec<String> = Vec::new();
     for l in output {
@@ -58,6 +30,33 @@ pub fn export(markdown: &str) -> String {
         collapsed.pop();
     }
     collapsed.join("\n")
+}
+
+/// One parsed line of `markdown` as plain text, before blank lines are collapsed; `None` for a
+/// line that leaves nothing (a code fence).
+pub(crate) fn export_line(markdown: &str, line: &MarkdownLine) -> Option<String> {
+    Some(match line.kind {
+        MarkdownBlockKind::CodeFence => return None,
+        MarkdownBlockKind::CodeBlock => markdown[line.range.clone()].to_string(),
+        MarkdownBlockKind::Blank | MarkdownBlockKind::HorizontalRule => String::new(),
+        MarkdownBlockKind::Heading { .. }
+        | MarkdownBlockKind::Paragraph
+        | MarkdownBlockKind::Blockquote => {
+            trimming_trailing_whitespace(&render_line(markdown, line)).to_string()
+        }
+        MarkdownBlockKind::BulletItem | MarkdownBlockKind::TaskItem { .. } => format!(
+            "{}• {}",
+            indent(markdown, line),
+            trimming_trailing_whitespace(&render_line(markdown, line))
+        ),
+        MarkdownBlockKind::OrderedItem { number, delimiter } => format!(
+            "{}{}{} {}",
+            indent(markdown, line),
+            number,
+            delimiter,
+            trimming_trailing_whitespace(&render_line(markdown, line))
+        ),
+    })
 }
 
 fn indent(text: &str, line: &MarkdownLine) -> String {

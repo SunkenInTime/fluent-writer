@@ -2,6 +2,8 @@
 
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::markdown::MarkdownLine;
+use crate::markdown_document::{LineSplice, MarkdownDocument};
 use crate::plain_text_exporter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -25,6 +27,74 @@ impl TextCounts {
 /// Counts what would actually be pasted: Markdown delimiters are excluded.
 pub fn counts_for_markdown(markdown: &str) -> TextCounts {
     counts_for_plain_text(&plain_text_exporter::export(markdown))
+}
+
+/// What one line adds to the counts of `counts_for_markdown`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LineCounts {
+    counts: TextCounts,
+    output: LineOutput,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum LineOutput {
+    /// Leaves nothing in the plain text (a code fence).
+    #[default]
+    Nothing,
+    /// A blank line, which collapses with the blank lines next to it.
+    Blank,
+    Text,
+}
+
+/// `counts_for_markdown` of a whole draft, kept per line so an edit recounts only the lines
+/// it changed. Plain text lines are joined with line feeds, which always end a word and a
+/// grapheme, so the totals are sums over lines plus one character for each line feed kept.
+#[derive(Debug, Clone, Default)]
+pub struct DraftCounts {
+    /// Parallel to the document's lines.
+    lines: Vec<LineCounts>,
+}
+
+impl DraftCounts {
+    pub fn new(doc: &MarkdownDocument) -> DraftCounts {
+        DraftCounts { lines: doc.lines().iter().map(|l| line_counts(doc.text(), l)).collect() }
+    }
+
+    /// Recounts the lines `splice` replaced in `doc`.
+    pub fn follow(&mut self, doc: &MarkdownDocument, splice: LineSplice) {
+        let fresh = doc.lines()[splice.new_lines()].iter().map(|l| line_counts(doc.text(), l));
+        self.lines.splice(splice.start..splice.start + splice.removed, fresh);
+    }
+
+    /// Equal to `counts_for_markdown(doc.text())`.
+    pub fn total(&self) -> TextCounts {
+        let mut total = TextCounts::ZERO;
+        let mut kept = 0;
+        // `export` keeps one blank line between two lines of text and drops the rest.
+        let mut blank_pending = false;
+        for line in &self.lines {
+            match line.output {
+                LineOutput::Nothing => {}
+                LineOutput::Blank => blank_pending = kept > 0,
+                LineOutput::Text => {
+                    kept += 1 + blank_pending as usize;
+                    blank_pending = false;
+                    total.words += line.counts.words;
+                    total.characters += line.counts.characters;
+                }
+            }
+        }
+        total.characters += kept.saturating_sub(1);
+        total
+    }
+}
+
+fn line_counts(markdown: &str, line: &MarkdownLine) -> LineCounts {
+    match plain_text_exporter::export_line(markdown, line) {
+        None => LineCounts::default(),
+        Some(t) if t.is_empty() => LineCounts { counts: TextCounts::ZERO, output: LineOutput::Blank },
+        Some(t) => LineCounts { counts: counts_for_plain_text(&t), output: LineOutput::Text },
+    }
 }
 
 /// Words are Unicode (UAX #29) words containing a letter or digit, standing in for

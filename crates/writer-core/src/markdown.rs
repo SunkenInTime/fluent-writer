@@ -265,14 +265,32 @@ pub(crate) fn terminator_after(
     (text.len(), text.len())
 }
 
+/// The code-fence state before a line: `Some(c)` inside a fence opened with `c` (a backtick
+/// or a tilde), `None` outside one. It is the only parse state carried from line to line.
+pub(crate) type Fence = Option<u8>;
+
 /// Parses every line of `text`. Code-fence state is tracked across lines.
 pub fn parse(text: &str) -> Vec<MarkdownLine> {
     let mut lines = Vec::new();
-    let mut in_fence = false;
-    let mut fence_marker = String::new();
-    let mut location = 0;
+    parse_lines_from(text, 0, None, |line, _| lines.push(line), |_, _| false);
+    lines
+}
+
+/// Parses the lines of `text` from the line starting at `location`, which starts with the
+/// fence state `fence`. Each line goes to `emit` with the fence state before it. Before
+/// parsing a line, `stop(location, fence)` may end the parse there.
+pub(crate) fn parse_lines_from(
+    text: &str,
+    mut location: usize,
+    mut fence: Fence,
+    mut emit: impl FnMut(MarkdownLine, Fence),
+    mut stop: impl FnMut(usize, Fence) -> bool,
+) {
     let length = text.len();
     while location <= length {
+        if stop(location, fence) {
+            return;
+        }
         let (contents_end, line_end) = if location == length {
             // Trailing empty line after a final newline (or empty document).
             if location > 0
@@ -288,41 +306,31 @@ pub fn parse(text: &str) -> Vec<MarkdownLine> {
             terminator_after(text, location, is_line_separator)
         };
         let line_range = location..contents_end;
-        let mut parsed = parse_line_in_fence(
-            &text[line_range.clone()],
-            location,
-            &mut in_fence,
-            &mut fence_marker,
-        );
+        let before = fence;
+        let mut parsed = parse_line_in_fence(&text[line_range.clone()], location, &mut fence);
         parsed.range = line_range;
-        lines.push(parsed);
+        emit(parsed, before);
         if line_end == location {
-            break;
+            return;
         }
         location = line_end;
     }
-    lines
 }
 
 /// Parses a single line in isolation (no fence context). Ranges are offset by `offset`.
 pub fn parse_line(line: &str, offset: usize) -> MarkdownLine {
-    let mut in_fence = false;
-    let mut marker = String::new();
-    parse_line_in_fence(line, offset, &mut in_fence, &mut marker)
+    parse_line_in_fence(line, offset, &mut None)
 }
 
-fn parse_line_in_fence(
-    line: &str,
-    offset: usize,
-    in_fence: &mut bool,
-    fence_marker: &mut String,
-) -> MarkdownLine {
+fn parse_line_in_fence(line: &str, offset: usize, fence: &mut Fence) -> MarkdownLine {
     let full = 0..line.len();
     let shifted = |r: &Range<usize>| r.start + offset..r.end + offset;
     let line_range = offset..offset + line.len();
     let empty_indent = offset..offset;
 
-    if let Some(m) = plain_matches(&FENCE, line, &full).into_iter().next() {
+    // Every fence starts with three backticks or tildes after at most three spaces or tabs.
+    let fence_candidate = line.contains("```") || line.contains("~~~");
+    if let Some(m) = fence_candidate.then(|| plain_matches(&FENCE, line, &full).into_iter().next()).flatten() {
         let marker = &line[m.group(1)];
         let whole = m.range();
         let fence_line = |r: Range<usize>| MarkdownLine {
@@ -333,16 +341,19 @@ fn parse_line_in_fence(
             content_range: shifted(&(r.end..line.len())),
             inlines: Vec::new(),
         };
-        if !*in_fence {
-            *in_fence = true;
-            *fence_marker = marker[..1].to_string();
-            return fence_line(whole);
-        } else if marker.starts_with(fence_marker.as_str()) {
-            *in_fence = false;
-            return fence_line(whole);
+        match *fence {
+            None => {
+                *fence = Some(marker.as_bytes()[0]);
+                return fence_line(whole);
+            }
+            Some(open) if marker.as_bytes()[0] == open => {
+                *fence = None;
+                return fence_line(whole);
+            }
+            Some(_) => {}
         }
     }
-    if *in_fence {
+    if fence.is_some() {
         return MarkdownLine {
             range: line_range.clone(),
             kind: MarkdownBlockKind::CodeBlock,
@@ -436,14 +447,25 @@ fn intersects(a: &Range<usize>, b: &Range<usize>) -> bool {
 
 /// Finds inline spans in `text` within `range`. Ranges are relative to `text`.
 pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan> {
+    parse_inlines_with(text, range, true)
+}
+
+/// `parse_inlines`, skipping each pattern whose literal the text lacks when `prefilter`.
+fn parse_inlines_with(text: &str, range: Range<usize>, prefilter: bool) -> Vec<MarkdownInlineSpan> {
     let range = crate::offsets::floor_char_boundary(text, range.start)
         ..crate::offsets::floor_char_boundary(text, range.end);
     let mut spans: Vec<MarkdownInlineSpan> = Vec::new();
     let mut protected: Vec<Range<usize>> = Vec::new();
     let overlaps_protected =
         |p: &Vec<Range<usize>>, r: &Range<usize>| p.iter().any(|x| intersects(x, r));
+    // Each pattern needs a literal that most prose lacks; without it the pattern can't match,
+    // so it isn't run. (The patterns run on this slice, so their lookbehinds can't see past it.)
+    let sub = &text[range.clone()];
+    let has = |needle: &str| !prefilter || sub.contains(needle);
+    let fancy_if = |ok: bool, re: &FancyRegex| if ok { fancy_matches(re, text, &range) } else { Vec::new() };
+    let plain_if = |ok: bool, re: &Regex| if ok { plain_matches(re, text, &range) } else { Vec::new() };
 
-    for m in fancy_matches(&CODE, text, &range) {
+    for m in fancy_if(has("`"), &CODE) {
         let r = m.range();
         let ticks = m.group(1).len();
         let open = r.start..r.start + ticks;
@@ -457,7 +479,7 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
         });
         protected.push(r);
     }
-    for m in plain_matches(&LINK, text, &range) {
+    for m in plain_if(has("]("), &LINK) {
         let r = m.range();
         if overlaps_protected(&protected, &r) {
             continue;
@@ -477,7 +499,7 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
         // Only the destination is protected; the link text may carry emphasis.
         protected.push(close);
     }
-    for m in plain_matches(&AUTOLINK, text, &range) {
+    for m in plain_if(has("<"), &AUTOLINK) {
         let r = m.range();
         if overlaps_protected(&protected, &r) {
             continue;
@@ -491,7 +513,7 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
         });
         protected.push(r);
     }
-    for m in fancy_matches(&BARE_URL, text, &range) {
+    for m in fancy_if(has("http") || has("www."), &BARE_URL) {
         let r = m.range();
         if overlaps_protected(&protected, &r) {
             continue;
@@ -506,7 +528,7 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
         protected.push(r);
     }
 
-    for m in fancy_matches(&TRIPLE, text, &range) {
+    for m in fancy_if(has("***"), &TRIPLE) {
         let r = m.range();
         if overlaps_protected(&protected, &r) {
             continue;
@@ -530,7 +552,7 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
         protected.push(r.end - 3..r.end);
     }
     let mut strong_ranges: Vec<Range<usize>> = Vec::new();
-    for m in fancy_matches(&STRONG, text, &range) {
+    for m in fancy_if(has("**") || has("__"), &STRONG) {
         let r = m.range();
         if overlaps_protected(&protected, &r) {
             continue;
@@ -549,8 +571,8 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
         strong_ranges.push(close);
     }
     let overlaps_strong_marker = |r: &Range<usize>| strong_ranges.iter().any(|x| intersects(x, r));
-    for regex in [&*EMPHASIS_STAR, &*EMPHASIS_UNDERSCORE] {
-        for m in fancy_matches(regex, text, &range) {
+    for (regex, marker) in [(&*EMPHASIS_STAR, "*"), (&*EMPHASIS_UNDERSCORE, "_")] {
+        for m in fancy_if(has(marker), regex) {
             let r = m.range();
             if overlaps_protected(&protected, &r) {
                 continue;
@@ -569,7 +591,7 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
             });
         }
     }
-    for m in fancy_matches(&STRIKE, text, &range) {
+    for m in fancy_if(has("~~"), &STRIKE) {
         let r = m.range();
         if overlaps_protected(&protected, &r) {
             continue;
@@ -584,4 +606,32 @@ pub fn parse_inlines(text: &str, range: Range<usize>) -> Vec<MarkdownInlineSpan>
     }
     spans.sort_by_key(|s| s.range.start);
     spans
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Skipping a pattern when its literal is missing finds exactly what running every
+    /// pattern finds.
+    #[test]
+    fn prefiltered_inlines_match_running_every_pattern() {
+        let pieces = [
+            "a", "word ", " ", "*", "**", "***", "_", "__", "~", "~~", "`", "``", "[", "]", "(", ")", "](", "!", "<", ">",
+            "http", "https://x.y/z", "www.", "mailto:", ":", ".", "\\", "\t", "é", "—", "x_y", "**b**", "*i*", "~~s~~",
+            "`c`", "[l](u)", "<http://a>", "\u{a0}",
+        ];
+        let mut seed = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut next = move |n: usize| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            (seed % n as u64) as usize
+        };
+        for _ in 0..20_000 {
+            let line: String = (0..next(14)).map(|_| pieces[next(pieces.len())]).collect();
+            let all = 0..line.len();
+            assert_eq!(parse_inlines_with(&line, all.clone(), true), parse_inlines_with(&line, all, false), "{line:?}");
+        }
+    }
 }
