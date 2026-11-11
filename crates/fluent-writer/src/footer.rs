@@ -81,7 +81,7 @@ pub fn view(s: &App, p: &Palette, opacity: f32, fade: Anim) -> El {
     let focus_fits = focus_x > pad + status_w + 12.0 && focus_x + focus_w < w - pad - counts_w - 12.0;
 
     let label = |key: &str, t: &str, x: f32, width: f32, align: Align| {
-        text(t).key(key).font(font).color(p.quiet).align(align).truncate().absolute(x, 9.0).size(width, 16.0).opacity(opacity).opacity_motion(fade.clone())
+        text(t).key(key).font(font).color(p.quiet).align(align).truncate().absolute(x, 9.0).size(width, 16.0).opacity(opacity).opacity_motion(fade)
     };
     let mut bar = el().key("footer").absolute(f.editor_x(), h - FOOTER_HEIGHT).size(w, FOOTER_HEIGHT).fill(p.canvas);
     if !status.is_empty() {

@@ -58,6 +58,8 @@ pub struct MenuBar {
     pub hot: usize,
     /// Alt went down with nothing else yet.
     alt_alone: bool,
+    /// The open menu came from the keyboard, so the access keys show.
+    pub by_keys: bool,
     /// Where the context menu opened, in window points.
     pub context_at: (f32, f32),
     /// The titles are folded into one button (set by the view's layout, read by the keys).
@@ -188,6 +190,7 @@ impl App {
         self.menus.sub = None;
         self.menus.in_sub = false;
         self.menus.row = if by_keys { next(&rows, None, 1) } else { None };
+        self.menus.by_keys = by_keys;
         if let Source::Menu(i) = source {
             self.menus.hot = i;
         }
@@ -457,7 +460,8 @@ pub fn view(s: &App, p: &Palette, bar: &BarLayout, opacity: f32, fade: Anim) -> 
     let mut titles = Vec::new();
     let mut layer = Vec::new();
     let m = &s.menus;
-    let show_letters = m.armed || m.open.is_some_and(|o| o != Source::Context);
+    // Access keys are underlined only while the keyboard drives the menus, as on Windows.
+    let show_letters = m.armed || (m.by_keys && m.open.is_some_and(|o| o != Source::Context));
     for (i, (t, _)) in MENUS.iter().enumerate() {
         let Some(r) = bar.titles.get(i).copied() else { break };
         let open = m.open == Some(Source::Menu(i));
@@ -475,7 +479,7 @@ pub fn view(s: &App, p: &Palette, bar: &BarLayout, opacity: f32, fade: Anim) -> 
             .fill(if hot { p.sidebar_selection.alpha(0.9) } else { Color::TRANSPARENT })
             .hover_group()
             .opacity(opacity)
-            .opacity_motion(fade.clone())
+            .opacity_motion(fade)
             .child(text(*t).font(ui_font(FONT, false)).color(if hot { p.text } else { p.icon }).group_color(p.text))
             .on_press_tx(move |s: &mut App, tx| {
                 if s.menus.open == Some(Source::Menu(i)) {
@@ -516,7 +520,7 @@ pub fn view(s: &App, p: &Palette, bar: &BarLayout, opacity: f32, fade: Anim) -> 
             .fill(if open || m.armed { p.sidebar_selection.alpha(0.9) } else { Color::TRANSPARENT })
             .hover_group()
             .opacity(opacity)
-            .opacity_motion(fade.clone())
+            .opacity_motion(fade)
             .child(icon(&LINES, 16.0).color(if open { p.caret } else { p.icon }).group_color(p.text))
             .on_press_tx(|s: &mut App, tx| {
                 if s.menus.open == Some(Source::All) {

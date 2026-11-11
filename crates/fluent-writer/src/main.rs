@@ -18,6 +18,8 @@ mod window;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod chrome_tests;
 
 use std::path::PathBuf;
 

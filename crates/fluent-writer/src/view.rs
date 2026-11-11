@@ -30,9 +30,9 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
 
     let mut top_bar = el().key("top-bar").absolute(f.editor_x(), 0.0).size(w, TOP_BAR_HEIGHT).fill(p.canvas).window_drag();
     if let Some(r) = chrome.title {
-        top_bar = top_bar.child(crate::title::view(s, &p, [r[0] - f.editor_x(), r[1], r[2], r[3]], opacity, fade.clone()));
+        top_bar = top_bar.child(crate::title::view(s, &p, [r[0] - f.editor_x(), r[1], r[2], r[3]], opacity, fade));
     }
-    let (menu_titles, menus) = crate::menubar::view(s, &p, &bar, opacity, fade.clone());
+    let (menu_titles, menus) = crate::menubar::view(s, &p, &bar, opacity, fade);
 
     let mut root = col()
         .key("window")
@@ -48,7 +48,7 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .on_pointer_move_local(|s: &mut App, at, tx| s.pointer_moved(at.window_x, at.window_y, tx))
         .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
         .child(top_bar)
-        .child(crate::footer::view(s, &p, opacity, fade.clone()))
+        .child(crate::footer::view(s, &p, opacity, fade))
         .children(menu_titles)
         .children(crate::chrome::view(s, &p, &chrome, opacity, fade))
         .children(menus);

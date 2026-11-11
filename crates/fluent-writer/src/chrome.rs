@@ -308,9 +308,9 @@ impl App {
 
 /// The sidebar button and the toolbar, over everything else in the window.
 pub fn view(s: &App, p: &Palette, l: &Layout, opacity: f32, fade: Anim) -> Vec<El> {
-    let mut out = vec![chrome_button(Button::Sidebar, l.sidebar, s.chrome_button_active(Button::Sidebar), 0, s.win.key, p, opacity, fade.clone())];
+    let mut out = vec![chrome_button(Button::Sidebar, l.sidebar, s.chrome_button_active(Button::Sidebar), 0, s.win.key, p, opacity, fade)];
     for (i, b) in Button::TOOLBAR.into_iter().enumerate() {
-        out.push(chrome_button(b, l.toolbar[i], s.chrome_button_active(b), s.chrome_button_count(b), s.win.key, p, opacity, fade.clone()));
+        out.push(chrome_button(b, l.toolbar[i], s.chrome_button_active(b), s.chrome_button_count(b), s.win.key, p, opacity, fade));
     }
     out
 }
