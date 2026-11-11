@@ -283,6 +283,7 @@ impl App {
             C::ToggleFocus => format!("Turn {} Focus On", focus_name(self.prefs.last_dimming_focus())),
             C::CopyForTwitter if self.has_selection() => "Copy Selection for Twitter".into(),
             C::Reveal => crate::platform::REVEAL_TITLE.into(),
+            C::ToggleSidebar if self.sidebar_visible => "Hide Sidebar".into(),
             _ => fallback.into(),
         }
     }
@@ -329,7 +330,12 @@ impl App {
         };
         let text = &self.edit.text;
         match command {
-            C::Quit | C::Close => tx.close_window(),
+            C::Quit | C::Close => self.leave_then(crate::remote_editing::Then::CloseWindow, tx),
+            C::OpenDraftPicker => self.open_picker(),
+            C::OpenFolder => self.open_folder_dialog(tx),
+            C::OpenOverSsh => self.open_over_ssh(),
+            C::ToggleSidebar => self.toggle_sidebar(tx),
+            C::RecentFiles => self.show_sidebar(crate::sidebar::Mode::Recent, tx),
             C::NewDraft => self.new_draft(tx),
             C::Save => {
                 if !self.draft.is_empty_untitled() && self.flush() {

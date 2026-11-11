@@ -7,7 +7,10 @@ use std::time::Duration;
 use rune::{TextEdit, Tx};
 use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownBlockKind, MarkdownLine, markdown, text_stats, text_units, title_deriver};
 
+use crate::open_picker::Picker;
 use crate::prefs::Prefs;
+use crate::remote_editing::{Remote, RemoteStatus, Then};
+use crate::sidebar::Sidebar;
 use crate::styler::Metrics;
 
 pub const TOP_BAR_HEIGHT: f32 = 40.0;
@@ -63,6 +66,9 @@ pub struct App {
     pub sidebar_visible: bool,
     /// The sidebar is showing over the text because the pointer is at the left edge.
     pub sidebar_peeking: bool,
+    pub sidebar: Sidebar,
+    pub picker: Picker,
+    pub remote: Remote,
     pub assist_visible: bool,
     pub library: DraftLibrary,
     pub draft: DraftDocument,
@@ -100,7 +106,7 @@ pub struct App {
     recenter_delay: u8,
     /// A draft was just loaded: start its scroll view from the top before finding the caret.
     scroll_reset: bool,
-    typed_since_poll: bool,
+    pub(crate) typed_since_poll: bool,
 }
 
 fn after(tx: &mut Tx, now: f64, seconds: f64) -> Option<f64> {
@@ -121,6 +127,9 @@ impl App {
         let mut app = App {
             sidebar_visible: prefs.show_sidebar(),
             sidebar_peeking: false,
+            sidebar: Sidebar::new(&prefs),
+            picker: Picker::default(),
+            remote: Remote::new(),
             assist_visible: false,
             library,
             draft: document.clone(),
@@ -150,7 +159,14 @@ impl App {
             typed_since_poll: false,
         };
         app.load(document);
+        app.reload_sidebar();
         app
+    }
+
+    /// Hands background work the waker that brings the window back to `poll`.
+    pub fn set_waker(&mut self, waker: rune::Waker) {
+        self.sidebar.set_waker(waker.clone());
+        self.remote.set_waker(waker);
     }
 
     // MARK: Layout
@@ -212,6 +228,8 @@ impl App {
         self.recenter = Some(false);
         self.recenter_delay = 2;
         self.scroll_reset = true;
+        self.remote.status = RemoteStatus::Idle;
+        self.sidebar_document_changed();
     }
 
     fn sync_document_from_view(&mut self) {
@@ -227,9 +245,10 @@ impl App {
         self.autosave_at = None;
         self.sync_document_from_view();
         match self.library.save(&mut self.draft) {
-            Ok(_) => {
+            Ok(result) => {
                 self.library.remember_selection(&self.draft);
                 self.save_state = SaveState::Saved;
+                self.after_save(result);
                 true
             }
             Err(e) => {
@@ -247,6 +266,9 @@ impl App {
     pub fn status(&self) -> (String, bool) {
         if let Some(t) = &self.transient {
             return (t.clone(), false);
+        }
+        if self.save_state == SaveState::Saved && let Some(remote) = self.remote_status_text() {
+            return remote;
         }
         match &self.save_state {
             SaveState::Saved => (if self.draft.path().is_none() { String::new() } else { "Saved".into() }, false),
@@ -338,11 +360,7 @@ impl App {
             tx.focus(DRAFT, false);
             return;
         }
-        if !self.flush() {
-            return;
-        }
-        let doc = self.library.new_draft();
-        self.load(doc);
+        self.leave_then(Then::NewDraft, tx);
     }
 
     // MARK: Scrolling
@@ -469,7 +487,7 @@ impl App {
     /// Runs before every frame. Returns whether anything the view reads changed.
     pub fn poll(&mut self, clock: f64, tx: &mut Tx) -> bool {
         self.now = clock;
-        let mut changed = false;
+        let mut changed = self.poll_sidebar(tx) | self.poll_remote(tx) | self.poll_picker(tx);
         let range = self.edit.range();
         if range != self.last_selection {
             self.last_selection = range;

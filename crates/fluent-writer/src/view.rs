@@ -37,9 +37,14 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .fill(p.canvas)
         .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
         .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
+        .on_window_focus(crate::sidebar::window_focus)
         .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
         .child(top_bar)
         .child(footer(s, &p, chrome, fade))
+        .children(crate::sidebar::view(s, &p, &f))
+        .child(crate::sidebar::button(s, &p, cx.titlebar_inset(), chrome, fade))
+        .children(crate::open_picker::view(s, &p))
+        .children(crate::remote_editing::view(s, &p))
 }
 
 fn draft(s: &App, p: &Palette) -> El {
@@ -101,7 +106,11 @@ fn footer(s: &App, p: &Palette, chrome: f32, fade: Spring) -> El {
     };
     let mut bar = el().key("footer").absolute(f.editor_x(), h - FOOTER_HEIGHT).size(w, FOOTER_HEIGHT).fill(p.canvas);
     if !status.is_empty() {
-        bar = bar.child(label("status", &status, pad, status_w, Align::Start).color(if warning { p.warning } else { p.quiet }).label("Save status"));
+        let mut status_label = label("status", &status, pad, status_w, Align::Start).color(if warning { p.warning } else { p.quiet }).label("Save status");
+        if let Some(help) = s.remote_status_help() {
+            status_label = status_label.help(help);
+        }
+        bar = bar.child(status_label);
     }
     if counts.is_empty() {
         return bar;
