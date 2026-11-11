@@ -578,3 +578,27 @@ pub fn set_folder_locked(folder: &std::path::Path, locked: bool) {
         assert!(icacls.output().unwrap().status.success(), "icacls changed the folder's access");
     }
 }
+
+/// The draft field fills the editor area, and a word wider than the column runs past it on
+/// one line, as before the field opted out of its min-content width (which Rune would
+/// otherwise measure on every edit).
+#[test]
+fn the_draft_field_fills_the_editor_even_with_a_word_wider_than_the_column() {
+    let body = format!("{}\n\nshort words after it", "x".repeat(400));
+    let (mut rt, _dir) = harness(&body);
+    let f = rt.state.frame();
+    let r = rt.state.field_rect;
+    assert_eq!((r[0], r[2]), (f.editor_x(), f.editor_w), "field {r:?}, editor {f:?}");
+    let mut carets = Vec::new();
+    for at in [0, 200, 400, 402, 410, body.len()] {
+        rt.update(|s, _| s.edit.set_selection(at, at));
+        settle(&mut rt, 0.1);
+        carets.push(rt.state.last_caret.expect("the draft has the caret"));
+    }
+    // Measured with the field's automatic minimum width.
+    let xs: Vec<f32> = carets.iter().map(|c| c[0]).collect();
+    let ys: Vec<f32> = carets.iter().map(|c| c[1]).collect();
+    assert_eq!(xs, [143.0, 2217.414, 4291.828, 143.0, 221.26367, 312.58057]);
+    assert_eq!(ys, [96.0, 96.0, 96.0, 154.0, 154.0, 154.0]);
+    assert_eq!(rt.state.field_rect, [0.0, 40.0, 1060.0, 720.0]);
+}

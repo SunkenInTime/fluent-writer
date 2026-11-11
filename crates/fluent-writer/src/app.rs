@@ -5,7 +5,8 @@ use std::ops::Range;
 use std::time::Duration;
 
 use rune::{TextEdit, Tx};
-use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownLine, markdown, text_stats, text_units};
+use writer_core::text_stats::DraftCounts;
+use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownDocument, MarkdownLine, text_stats, text_units};
 
 use crate::open_picker::Picker;
 use crate::prefs::Prefs;
@@ -83,7 +84,10 @@ pub struct App {
     pub find: crate::find::Find,
     pub editing: crate::editing::Editing,
     pub prefs: Prefs,
-    pub lines: Vec<MarkdownLine>,
+    /// The draft's text as last parsed, line by line. `parse_text` brings it up to `edit.text`.
+    pub(crate) parsed: MarkdownDocument,
+    /// The draft's word and character counts, kept per line of `parsed`.
+    draft_counts: DraftCounts,
     pub focus: FocusUnit,
     pub metrics: Metrics,
     pub save_state: SaveState,
@@ -164,7 +168,8 @@ impl App {
             focus: prefs.focus(),
             metrics: Metrics::new(prefs.text_size()),
             prefs,
-            lines: Vec::new(),
+            parsed: MarkdownDocument::new(""),
+            draft_counts: DraftCounts::new(&MarkdownDocument::new("")),
             save_state: SaveState::Saved,
             transient: None,
             counts: String::new(),
@@ -314,7 +319,7 @@ impl App {
 
     pub fn update_counts(&mut self) {
         self.counts_at = None;
-        let total = text_stats::counts_for_markdown(&self.edit.text);
+        let total = self.draft_total_counts();
         let (a, b) = self.edit.range();
         let selection = (a != b).then(|| text_stats::counts_for_markdown(&self.edit.text[a.min(b)..a.max(b)]));
         self.counts = text_stats::format(total, selection);
@@ -329,8 +334,27 @@ impl App {
     // MARK: Parsing
 
     fn reparse(&mut self) {
-        self.lines = markdown::parse(&self.edit.text);
+        self.parse_text();
         self.refresh_images();
+    }
+
+    /// Brings the parse and the counts up to the draft's text, re-reading only the lines an
+    /// edit changed. Cheap when the text is the one already parsed.
+    fn parse_text(&mut self) {
+        if let Some(splice) = self.parsed.update(&self.edit.text) {
+            self.draft_counts.follow(&self.parsed, splice);
+        }
+    }
+
+    /// The draft's Markdown lines, as of the last change to its text.
+    pub fn lines(&self) -> &[MarkdownLine] {
+        self.parsed.lines()
+    }
+
+    /// `counts_for_markdown` of the whole draft, from the per-line counts.
+    pub fn draft_total_counts(&mut self) -> text_stats::TextCounts {
+        self.parse_text();
+        self.draft_counts.total()
     }
 
     // MARK: Focus
