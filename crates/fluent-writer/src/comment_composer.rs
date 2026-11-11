@@ -92,19 +92,6 @@ fn label_colors(p: &Palette) -> (Color, Color) {
 }
 
 impl App {
-    /// What the draft draws behind its text: comment highlights, and while the composer has the
-    /// keyboard, the draft's selection in AppKit's unfocused selection grey (the editor's window
-    /// isn't key while its popover is).
-    pub fn draft_highlights(&self, p: &Palette) -> Vec<rune::Span> {
-        let mut spans = self.notes.highlights(self.edit.text.len(), p);
-        let (a, b) = self.edit.range();
-        if self.composer.open.is_some() && a != b {
-            let grey = if p.dark { rgba(70, 70, 70, 1.0) } else { rgba(220, 220, 220, 1.0) };
-            spans.push(rune::Span::new(a.min(b), a.max(b)).bg(grey, 0.0));
-        }
-        spans
-    }
-
     /// Selects `range`, scrolls it into view and opens the composer pointing at its first
     /// character. `CommentComposer.swift:138-165`
     pub fn composer_present(&mut self, range: Range<usize>, quote: String, initial: String, target: Target, tx: &mut Tx) {
@@ -144,7 +131,7 @@ impl App {
         let r = pending.open.range.clone();
         let len = self.edit.text.len();
         self.edit.set_selection(r.start.min(len), r.end.min(len));
-        let mut edit = TextEdit::new(pending.initial);
+        let mut edit = crate::editing::text_edit(pending.initial);
         edit.focused = true;
         let end = edit.text.len();
         edit.set_caret(end);
@@ -159,7 +146,7 @@ impl App {
     pub fn composer_save(&mut self, tx: &mut Tx) {
         let body = self.composer.edit.text.trim().to_string();
         if body.is_empty() {
-            self.beep();
+            tx.beep();
             return;
         }
         let Some(open) = self.composer.open.take() else { return };

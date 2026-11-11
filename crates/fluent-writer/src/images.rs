@@ -303,6 +303,11 @@ impl App {
         if files.is_empty() && png.is_none() {
             return false;
         }
+        // The draft is hidden behind a version preview. `ImageBlocks.swift:311`
+        if self.preview.is_active() {
+            tx.beep();
+            return true;
+        }
         if self.draft.remote().is_some() {
             self.flash_message("Images can't be added to files opened over SSH yet", tx);
             return true;
@@ -356,7 +361,8 @@ impl App {
         let after_newline = range.end >= text.len() || text.as_bytes()[range.end] == b'\n';
         let insertion = format!("{}{}{}", if before_newline { "" } else { "\n\n" }, snippets.join("\n\n"), if after_newline { "" } else { "\n\n" });
         let caret = range.start + insertion.len();
-        self.apply(&writer_core::TextEdit::new(range, insertion, caret..caret), tx);
+        let name = if snippets.len() == 1 { "Insert Image" } else { "Insert Images" };
+        self.apply(&writer_core::TextEdit::new(range, insertion, caret..caret), name, tx);
         tx.focus(DRAFT, false);
         let what = if snippets.len() == 1 { "Image added".to_string() } else { format!("{} images added", snippets.len()) };
         let how = if copied > 0 { "copied to the images folder beside this draft" } else { "linked where it already is" };
@@ -364,13 +370,16 @@ impl App {
         true
     }
 
-    /// Format › Image…: pick an image file to insert.
+    /// Format › Image…: pick one or more image files to insert, in the order the dialog gives
+    /// them. The message shows on the Mac's panel; Windows and Linux show it as the dialog's
+    /// title, where they have no message. `ImageBlocks.swift:361-374`
     pub fn insert_image_from_file(&mut self, tx: &mut Tx) {
         let extensions: Vec<&str> = markdown_images::IMAGE_EXTENSIONS.to_vec();
-        let options = rune::FileDialogOptions { title: "Images are copied into an images folder next to this draft.".into(), ..Default::default() }.filter("Images", &extensions);
-        tx.open_file(options, |s: &mut App, result, tx| {
-            if let Ok(Some(path)) = result {
-                s.insert_images(&[path], None, None, tx);
+        let message = "Images are copied into an images folder next to this draft.";
+        let options = rune::FileDialogOptions { title: message.into(), ..Default::default() }.message(message).filter("Images", &extensions);
+        tx.open_files(options, |s: &mut App, result, tx| {
+            if let Ok(paths) = result {
+                s.insert_images(&paths, None, None, tx);
             }
         });
     }

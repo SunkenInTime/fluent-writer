@@ -187,7 +187,7 @@ fn add_comment_comments_on_the_current_line_and_saves_on_return() {
     assert!(rt.find("comment-composer").is_some());
     // Return with nothing typed beeps and stays open.
     press(&mut rt, Key::Enter, Mods::default());
-    assert_eq!(rt.state.notes.beeps, 1);
+    assert_eq!(rt.beeps(), 1);
     assert!(rt.state.composer.open.is_some());
     type_text(&mut rt, "Make it");
     press(&mut rt, Key::Enter, Mods { shift: true, ..Mods::default() });
@@ -223,7 +223,7 @@ fn add_comment_on_a_blank_line_beeps() {
     select(&mut rt, 6, 6);
     open_composer(&mut rt);
     assert!(rt.state.composer.open.is_none());
-    assert_eq!(rt.state.notes.beeps, 1);
+    assert_eq!(rt.beeps(), 1);
 }
 
 #[test]
@@ -271,7 +271,7 @@ fn previewing_steps_through_versions_and_back_to_the_draft() {
     assert_eq!(rt.state.preview.version_id(), Some(older.as_str()));
     assert_eq!(rt.state.preview.rendered.combined, "The dog cat sat on the mat.");
     press(&mut rt, Key::Left, Mods::default());
-    assert_eq!(rt.state.notes.beeps, 1);
+    assert_eq!(rt.beeps(), 1);
     // Typing in the diff changes nothing.
     type_text(&mut rt, "x");
     assert_eq!(rt.state.preview.edit.text, "The dog cat sat on the mat.");
@@ -282,7 +282,7 @@ fn previewing_steps_through_versions_and_back_to_the_draft() {
     assert!(!rt.state.preview.is_active());
     assert!(rt.find("version-bar").is_none());
     rt.update(|s, tx| s.preview_step(1, tx));
-    assert_eq!(rt.state.notes.beeps, 3);
+    assert_eq!(rt.beeps(), 3);
     // Esc goes back too.
     rt.update(|s, tx| s.preview_version(&older, tx));
     settle(&mut rt, 0.05);
@@ -535,4 +535,92 @@ fn keys_reach_the_preview_through_the_window_too() {
     rt.key(KeyEvent { key: Key::Escape, mods: Mods::default() });
     rt.frame(1.0 / 60.0);
     assert!(!rt.state.preview.is_active());
+}
+
+// MARK: Exact edits, beeps, announcements, line-height highlights
+
+/// Comments follow the edits the draft reports, not a diff of its text: undoing a version
+/// that changed words on both sides of a comment takes back two separate changes, so a
+/// comment on a word that also appears elsewhere keeps its own place.
+#[test]
+fn undoing_edits_on_both_sides_of_a_comment_keeps_it_in_place() {
+    let body = "the cat and the dog. the cat ran.";
+    let (mut rt, _dir) = harness(body);
+    // The second "the", between the two "cat"s.
+    let id = rt.state.add_comment(12..15, "which?").unwrap();
+    rt.frame(1.0 / 60.0);
+    let v = DraftVersion::new(VersionKind::Proposal, "Cows", "Claude", "the cow and the dog. the cow ran.");
+    let vid = v.id.clone();
+    rt.update(|s, _| s.add_version(v));
+    rt.update(|s, tx| s.use_version(&vid, tx));
+    settle(&mut rt, 0.1);
+    assert_eq!(rt.state.edit.text, "the cow and the dog. the cow ran.");
+    assert_eq!(rt.state.notes.comment(&id).unwrap().range, 12..15);
+    command(&mut rt, 'z', false, false);
+    assert_eq!(rt.state.edit.text, body);
+    assert_eq!(span(&rt, &id), ("the".into(), false));
+    assert_eq!(rt.state.notes.comment(&id).unwrap().range, 12..15, "not the first \"the\"");
+    command(&mut rt, 'z', true, false);
+    assert_eq!(rt.state.notes.comment(&id).unwrap().range, 12..15, "redo too");
+}
+
+/// Pasting before a comment moves it by exactly the pasted length.
+#[test]
+fn a_paste_moves_comments_by_its_length() {
+    let (mut rt, _dir) = harness("aa aa");
+    let id = rt.state.add_comment(3..5, "second").unwrap();
+    rt.update(|s, _| s.edit.set_caret(2));
+    rt.paste("aa");
+    settle(&mut rt, 0.1);
+    assert_eq!(rt.state.edit.text, "aaaa aa");
+    assert_eq!(rt.state.notes.comment(&id).unwrap().range, 5..7);
+}
+
+/// The system beep: typing in the read-only diff, and adding an image while a version is
+/// previewed. `ImageBlocks.swift:311`
+#[test]
+fn the_preview_beeps_at_typing_and_at_images() {
+    let (mut rt, dir) = harness("The dog sat.");
+    let v = add_version(&mut rt, "Cat", "The cat sat.");
+    rt.update(|s, tx| s.preview_version(&v, tx));
+    settle(&mut rt, 0.1);
+    type_text(&mut rt, "x");
+    assert_eq!(rt.beeps(), 1);
+    let image = dir.path().join("shot.png");
+    std::fs::write(&image, b"not really a png").unwrap();
+    rt.update(|s, tx| assert!(s.insert_images(std::slice::from_ref(&image), None, None, tx), "handled"));
+    rt.frame(1.0 / 60.0);
+    assert_eq!(rt.beeps(), 2);
+    assert_eq!(rt.state.edit.text, "The dog sat.", "nothing added");
+}
+
+/// Opening a preview is announced to screen readers. `VersionPreview.swift:185-188`
+#[test]
+fn opening_a_preview_is_announced() {
+    let (mut rt, _dir) = harness("The dog sat.");
+    let v = add_version(&mut rt, "Cat", "The cat sat.");
+    rt.update(|s, tx| s.preview_version(&v, tx));
+    rt.frame(1.0 / 60.0);
+    assert_eq!(rt.announcement(), Some("Previewing Cat. Left and right arrows switch versions, Return uses it, Escape goes back."));
+}
+
+/// Comment highlights, inline code and the diff's tints fill the line's whole height, as
+/// AppKit's `.backgroundColor` does.
+#[test]
+fn backgrounds_fill_the_line_height() {
+    let (mut rt, _dir) = harness("Some `code` here.");
+    rt.state.add_comment(0..4, "c").unwrap();
+    let p = crate::theme::Palette::new(false);
+    assert!(rt.state.notes.highlights(rt.state.edit.text.len(), &p).iter().all(|s| s.is_line_bg()));
+    let styled = crate::styler::style(&rt.state.edit.text, rt.state.lines(), &rt.state.metrics, &p, &|_| 0.0);
+    let code: Vec<_> = styled.spans.iter().filter(|s| s.bg.is_some()).collect();
+    assert_eq!(code.len(), 1);
+    assert!(code[0].is_line_bg() && code[0].bg == Some(p.code_background));
+    let v = add_version(&mut rt, "Other", "Some `code` there.");
+    rt.update(|s, tx| s.preview_version(&v, tx));
+    settle(&mut rt, 0.1);
+    let r = &rt.state.preview.rendered;
+    let tints: Vec<_> = crate::version_preview::diff_styled(r, &rt.state.metrics, &p).spans.into_iter().filter(|s| s.bg.is_some()).collect();
+    assert_eq!(tints.iter().map(|s| s.bg.unwrap()).collect::<Vec<_>>(), [p.code_background, p.deleted_background, p.inserted_background]);
+    assert!(tints.iter().all(|s| s.is_line_bg()));
 }

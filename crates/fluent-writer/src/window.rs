@@ -12,8 +12,7 @@ use rune::{DisplayTarget, OverlayPlacement, Tx};
 use crate::app::App;
 use crate::prefs::Prefs;
 
-/// The running app's handle, for what a handler can't ask of its `Tx`: showing the window
-/// again after a close the app refused, and moving it.
+/// The running app's handle, for what a handler can't ask of its `Tx`: moving the window.
 pub static HANDLE: OnceLock<rune::AppHandle<App>> = OnceLock::new();
 
 #[derive(Debug, Default)]

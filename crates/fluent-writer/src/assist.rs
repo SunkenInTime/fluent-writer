@@ -67,7 +67,7 @@ impl Assist {
     pub fn new(provider: AgentProvider) -> Assist {
         Assist {
             provider,
-            instruction: TextEdit::new(""),
+            instruction: crate::editing::text_edit(""),
             running: false,
             handle: None,
             sent: None,

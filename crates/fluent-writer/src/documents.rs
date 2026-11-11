@@ -4,7 +4,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use rune::{FileDialogOptions, Tx};
+use rune::{CloseRequest, FileDialogOptions, Tx};
 use writer_core::draft_store::FILE_EXTENSIONS;
 use writer_core::{atomic_file, title_deriver};
 
@@ -21,13 +21,6 @@ pub struct Documents {
     pub(crate) pending: Option<Then>,
     /// The leave check passed for a quit already, so closing the window doesn't ask again.
     pub quitting: bool,
-}
-
-/// A window the system already hid for a close comes back to show a question.
-pub fn bring_window_back() {
-    if let Some(handle) = crate::window::HANDLE.get() {
-        handle.open();
-    }
 }
 
 impl App {
@@ -69,7 +62,6 @@ impl App {
                     }
                 }),
         );
-        bring_window_back();
     }
 
     /// File › New: an empty, never-saved draft just takes the keyboard; anything else is left
@@ -192,9 +184,21 @@ impl App {
         self.notes.app_will_terminate();
     }
 
-    /// Rune's `on_close`: the close button, or the system closing the window. Rune can't keep
-    /// the window open from here, so it hides; if the leave check needs to ask, the window
-    /// comes back with the question, and Keep Editing leaves it open.
+    /// Rune's `on_close_request`: the user asked to close the window (its close button, Alt+F4,
+    /// ⌘W nothing took) or, on macOS, to quit from the Dock or the app menu. The leave check
+    /// runs first, as `windowShouldClose` ran it (`EditorController.swift:841-843`): when the
+    /// draft is saved it quits (`tx.quit`); when the save failed the window stays up, as it
+    /// was, with the alert, and Continue or a successful Save As… quits from there.
+    pub fn close_requested(&mut self, _why: CloseRequest, tx: &mut Tx) -> bool {
+        if self.documents.quitting {
+            return true;
+        }
+        self.quit(tx);
+        false
+    }
+
+    /// Rune's `on_close`: the window is closing (after the leave check let it, or because the
+    /// app closed it). The app quits with it; a check that already passed doesn't ask again.
     pub fn window_closing(&mut self, tx: &mut Tx) {
         self.quit(tx);
     }

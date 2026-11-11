@@ -74,13 +74,15 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
     if let Some(focus) = s.focus_range() {
         styled.spans.extend(styler::dimming(s.edit.text.len(), &focus, p));
     }
-    styled.spans.extend(s.draft_highlights(p));
-    let field = text_input(&s.edit, draft_font(m.font_size))
+    styled.spans.extend(s.notes.highlights(s.edit.text.len(), p));
+    let mut field = text_input(&s.edit, draft_font(m.font_size))
         .key(DRAFT)
         .label("Draft")
         .description("The draft text. Use the Format menu or Markdown to style text.")
         .color(p.text)
         .caret(p.caret, p.selection)
+        // Grey while the composer, the find bar, the title or Assist has the keyboard.
+        .selection_style(crate::version_preview::selection_style(p))
         .caret_size(m.caret_width(), m.caret_height())
         .spans(styled.spans)
         .paragraph_blocks(styled.blocks)
@@ -111,19 +113,21 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
             s.insert_images(files, None, at, tx);
         })
         .accepts_extensions(&writer_core::markdown_images::IMAGE_EXTENSIONS)
-        .on_secondary_press_local(|s: &mut App, at, tx| {
-            s.menus.context_offset = at.text_offset;
-            // Right-clicking a commented passage makes that comment the active one.
-            if let Some(id) = at.text_offset.and_then(|o| s.notes.comment_at(o)).map(|c| c.id.clone()) {
-                s.notes.set_active_comment(Some(id));
-            }
-            s.open_context_menu(at.window(), tx)
-        })
+        // The comment items go before the field's own menu (spelling suggestions, Cut, Copy,
+        // Paste), as the Swift's `textView(_:menu:for:at:)` put them before AppKit's.
+        .input_menu(|s: &mut App, at| s.draft_menu_items(at), |s: &mut App, id, _, tx| s.context_pick(id, tx))
         .on_submit(|s: &mut App, tx| {
             s.edit.insert("\n");
             s.text_did_change(tx);
         })
         .on_layout(|s: &mut App, r| s.field_rect = r);
+    if !s.menus.native {
+        // No native pop-up menus (Linux): the app draws the whole menu itself.
+        field = field.on_secondary_press_local(|s: &mut App, at, tx| {
+            s.note_context_offset(at.text_offset);
+            s.open_context_menu(at.window(), tx)
+        });
+    }
     let page = el().w_full().child(field).children(crate::images::view(s, p, cx));
     // The draft's menu offers Check Spelling While Typing, as the text view's Spelling submenu did.
     col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).on_spellcheck(s.prefs.spell_check(), |s: &mut App, on, _| s.prefs.set_spell_check(on)).child(page)

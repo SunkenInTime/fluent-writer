@@ -31,14 +31,16 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     let (a, b) = s.edit.range();
     let sel = a.min(b)..a.max(b);
     let plain = !ev.mods.cmd && !ev.mods.ctrl && !ev.mods.alt;
+    // A continued list is a "Typing" step; Tab and Shift-Tab are "Indent" and "Outdent".
+    // `EditorController.swift:738-752`
     let edit = match ev.key {
-        Key::Enter if plain && !ev.mods.shift => text_editing::newline_edit(&s.edit.text, sel),
-        Key::Tab if plain => text_editing::indent_edit(&s.edit.text, sel, ev.mods.shift),
+        Key::Enter if plain && !ev.mods.shift => text_editing::newline_edit(&s.edit.text, sel).map(|e| (e, crate::editing::TYPING)),
+        Key::Tab if plain => text_editing::indent_edit(&s.edit.text, sel, ev.mods.shift).map(|e| (e, if ev.mods.shift { "Outdent" } else { "Indent" })),
         _ => None,
     };
     match edit {
-        Some(edit) => {
-            s.apply(&edit, tx);
+        Some((edit, name)) => {
+            s.apply(&edit, name, tx);
             true
         }
         None => false,

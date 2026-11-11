@@ -76,8 +76,8 @@ impl Default for Find {
             visible: false,
             replacing: false,
             options_open: false,
-            query: TextEdit::new(""),
-            replacement: TextEdit::new(""),
+            query: crate::editing::text_edit(""),
+            replacement: crate::editing::text_edit(""),
             options: Options::default(),
             notice: None,
         }
@@ -254,7 +254,7 @@ pub fn replace(s: &mut App, tx: &mut Tx) {
     }
     let with = s.find.replacement.text.clone();
     let end = sel.start + with.len();
-    s.apply(&writer_core::TextEdit::new(sel.clone(), with, end..end), tx);
+    s.apply(&writer_core::TextEdit::new(sel.clone(), with, end..end), "Replace", tx);
     let found = s.find_matches();
     if let Some(m) = pick(&found, end, true, s.find.options.wrap) {
         select(s, m, tx);
@@ -279,7 +279,7 @@ pub fn replace_all(s: &mut App, tx: &mut Tx) {
     }
     let end = first.start + middle.len();
     let edit = writer_core::TextEdit::new(first.start..last.end, middle, end..end);
-    s.apply(&edit, tx);
+    s.apply(&edit, "Replace All", tx);
     s.find.notice = Some(format!("{} replaced", found.len()));
 }
 
@@ -307,8 +307,8 @@ fn replace_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
 
 // MARK: Drawing
 
-/// The highlights the draft draws: every match, the current one (the selected match) distinct
-/// and keyed for scrolling, and an invisible one over the selection for Jump to Selection.
+/// The highlights the draft draws: every match, the current one (the selected match) distinct,
+/// in the app's own rounded ring, and keyed for scrolling, and an invisible one over the selection for Jump to Selection.
 pub fn highlights(s: &App, p: &Palette) -> Vec<TextHighlight> {
     let mut out = Vec::new();
     let sel = selection(s);
@@ -317,7 +317,8 @@ pub fn highlights(s: &App, p: &Palette) -> Vec<TextHighlight> {
             if m == sel {
                 out.push(TextHighlight::new(m, p.find_current).ring(p.caret, 1.0).key(CURRENT));
             } else if s.find.visible {
-                out.push(TextHighlight::new(m, p.find_match));
+                // AppKit lights each match over the line fragment's whole height, square.
+                out.push(TextHighlight::new(m, p.find_match).line_bg());
             }
         }
     }

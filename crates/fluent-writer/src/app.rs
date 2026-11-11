@@ -162,7 +162,7 @@ impl App {
             preview: Default::default(),
             library,
             draft: document.clone(),
-            edit: TextEdit::new(""),
+            edit: crate::editing::text_edit(""),
             find: Default::default(),
             editing: Default::default(),
             focus: prefs.focus(),
@@ -194,7 +194,7 @@ impl App {
             title: Default::default(),
             alerts: Vec::new(),
             documents: Default::default(),
-            menus: Default::default(),
+            menus: crate::menubar::MenuBar::new(),
             win: crate::window::Window::new(),
         };
         app.load(document);
@@ -252,7 +252,8 @@ impl App {
 
     pub fn load(&mut self, doc: DraftDocument) {
         self.draft = doc;
-        let mut edit = TextEdit::new(self.draft.body.clone());
+        // Comments follow the edits it reports (`notes.rs`).
+        let mut edit = crate::editing::text_edit(self.draft.body.clone()).report_changes();
         let len = self.draft.body.len();
         let sel = &self.draft.selection;
         let (a, b) = (sel.start.min(len), sel.end.min(len));
@@ -311,8 +312,12 @@ impl App {
 
     // MARK: Status and counts
 
+    /// A transient status, announced to screen readers as the Swift's medium-priority
+    /// announcement was. `EditorController.swift:491-501`
     pub fn flash_message(&mut self, message: impl Into<String>, tx: &mut Tx) {
-        self.transient = Some(message.into());
+        let message = message.into();
+        tx.announce(message.clone());
+        self.transient = Some(message);
         self.show_chrome(true, tx);
         self.transient_until = after(tx, self.now, 2.2);
     }
@@ -536,11 +541,11 @@ impl App {
         self.selection_at = after(tx, self.now, 1.0);
     }
 
-    /// Applies an edit as one undo step and places the selection after it. Undo puts back the
-    /// text and the selection from before; redo the text and `selection_after`.
-    pub fn apply(&mut self, edit: &writer_core::TextEdit, tx: &mut Tx) {
-        self.notes.expect_edit(edit.range.clone());
-        self.edit.undo_group(|e| {
+    /// Applies an edit as one undo step called `name` ("Bold"; the Edit menu then reads "Undo
+    /// Bold") and places the selection after it. Undo puts back the text and the selection from
+    /// before; redo the text and `selection_after`. `EditorController.swift:763-772`
+    pub fn apply(&mut self, edit: &writer_core::TextEdit, name: &str, tx: &mut Tx) {
+        self.edit.undo_group_named(name, |e| {
             let len = e.text.len();
             e.set_selection(edit.range.start.min(len), edit.range.end.min(len));
             e.insert(&edit.replacement);

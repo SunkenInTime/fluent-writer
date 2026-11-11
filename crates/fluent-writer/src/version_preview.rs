@@ -5,7 +5,7 @@
 use std::ops::Range;
 use std::time::Duration;
 
-use rune::{Align, Color, El, Icon, Key, KeyEvent, LiveRegion, ScrollSpec, TextEdit, Tx, col, el, icon, text, text_input};
+use rune::{Align, Color, El, Icon, Key, KeyEvent, ScrollSpec, SelectionStyle, TextEdit, Tx, col, el, icon, text, text_input};
 use writer_core::{DiffSegmentKind, DraftVersion, MarkdownLine, VersionKind, markdown, text_stats, word_diff};
 
 use crate::app::{App, DRAFT, FOOTER_HEIGHT, TOP_BAR_HEIGHT};
@@ -175,7 +175,7 @@ impl App {
         let Some(v) = self.notes.version(id) else { return false };
         let r = render(v, &self.edit.text, &self.timeline());
         let focused = self.preview.edit.focused;
-        let mut edit = TextEdit::new(r.combined.clone());
+        let mut edit = crate::editing::text_edit(r.combined.clone());
         edit.focused = focused;
         edit.set_caret(0);
         self.preview.edit = edit;
@@ -200,8 +200,7 @@ impl App {
         self.preview.scroll_in = Some(2);
         tx.wake_after(Duration::ZERO);
         self.notes.schedule_live_state(self.now);
-        self.notes.announcement =
-            format!("Previewing {}. Left and right arrows switch versions, Return uses it, Escape goes back.", self.preview.rendered.label);
+        tx.announce(format!("Previewing {}. Left and right arrows switch versions, Return uses it, Escape goes back.", self.preview.rendered.label));
     }
 
     /// Back to the draft, focused. `VersionPreview.swift:191-202`
@@ -225,14 +224,14 @@ impl App {
         let current = self.preview.version_id().and_then(|id| line.iter().position(|v| v == id)).unwrap_or(line.len());
         let next = current as isize + delta;
         if next < 0 {
-            self.beep();
+            tx.beep();
             return;
         }
         if next as usize >= line.len() {
             if self.preview.is_active() {
                 self.close_preview(tx);
             } else {
-                self.beep();
+                tx.beep();
             }
             return;
         }
@@ -308,11 +307,20 @@ pub fn preview_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         Key::Right => s.preview_step(1, tx),
         Key::Escape => s.close_preview(tx),
         Key::Enter => s.preview_use(tx),
-        Key::Text(_) | Key::Backspace | Key::Delete | Key::Tab => s.beep(),
-        Key::Command('x') | Key::Command('v') | Key::Command('z') => s.beep(),
+        // A text view that isn't editable beeps at typing, cut, paste and undo.
+        Key::Text(_) | Key::Backspace | Key::Delete | Key::Tab => tx.beep(),
+        Key::Command('x') | Key::Command('v') | Key::Command('z') => tx.beep(),
         _ => return false,
     }
     true
+}
+
+/// How a text view draws its selection: `selection` while it has the keyboard in the key
+/// window, AppKit's grey `unemphasizedSelectedTextBackgroundColor` otherwise (another field
+/// has the keyboard, or the window isn't key), the text keeping its colours.
+/// `EditorController.swift:176`, `VersionPreview.swift:77`
+pub fn selection_style(p: &Palette) -> SelectionStyle {
+    SelectionStyle::new(p.selection).inactive(p.unfocused_selection, None).unfocused(p.unfocused_selection, None)
 }
 
 /// The width AppKit gives a small rounded push button sized to fit `title`.
@@ -430,29 +438,35 @@ pub fn view(s: &App, p: &Palette) -> El {
         .fill(p.canvas)
         .child(diff(s, p).absolute(0.0, BAR_HEIGHT).size(w, (h - BAR_HEIGHT).max(0.0)))
         .child(bar)
-        .child(text(&s.notes.announcement).live_region(LiveRegion::Polite).absolute(0.0, 0.0).size(1.0, 1.0).opacity(0.0))
 }
 
-/// The diff text: the editor's column and Markdown styling, inserted words green, deleted ones
-/// red and struck through, each on its tint. `VersionPreview.swift:154-161`, `VersionPreview.swift:270-287`
+/// The diff's Markdown styling, inserted words green and deleted ones red and struck through,
+/// each on its tint, which fills the line's whole height as AppKit's `.backgroundColor` does.
+/// `VersionPreview.swift:270-287`
+pub fn diff_styled(r: &Rendered, m: &styler::Metrics, p: &Palette) -> styler::Styled {
+    let mut styled = styler::style(&r.combined, &r.lines, m, p, &|_| 0.0);
+    for (range, kind) in &r.marks {
+        let span = rune::Span::new(range.start, range.end);
+        match kind {
+            DiffSegmentKind::Insert => styled.spans.push(span.color(p.inserted).line_bg(p.inserted_background)),
+            DiffSegmentKind::Delete => {
+                styled.spans.push(span.color(p.deleted).line_bg(p.deleted_background));
+                styled.strikes.push((range.start, range.end, Some(p.deleted)));
+            }
+            DiffSegmentKind::Equal => {}
+        }
+    }
+    styled
+}
+
+/// The diff text: the editor's column and the diff's styling. `VersionPreview.swift:154-161`
 fn diff(s: &App, p: &Palette) -> El {
     let r = &s.preview.rendered;
     let m = &s.metrics;
     let c = s.column();
     let vw = s.frame().editor_w;
     let vh = s.preview_scroll_height();
-    let mut styled = styler::style(&r.combined, &r.lines, m, p, &|_| 0.0);
-    for (range, kind) in &r.marks {
-        let span = rune::Span::new(range.start, range.end);
-        match kind {
-            DiffSegmentKind::Insert => styled.spans.push(span.color(p.inserted).bg(p.inserted_background, 0.0)),
-            DiffSegmentKind::Delete => {
-                styled.spans.push(span.color(p.deleted).bg(p.deleted_background, 0.0));
-                styled.strikes.push((range.start, range.end, Some(p.deleted)));
-            }
-            DiffSegmentKind::Equal => {}
-        }
-    }
+    let styled = diff_styled(r, m, p);
     let field = text_input(&s.preview.edit, draft_font(m.font_size))
         .key(PREVIEW)
         .label("Version preview")
@@ -461,6 +475,7 @@ fn diff(s: &App, p: &Palette) -> El {
         .read_only(true)
         .color(p.text)
         .caret(Color::TRANSPARENT, p.selection)
+        .selection_style(selection_style(p))
         .spans(styled.spans)
         .paragraph_blocks(styled.blocks)
         .input_strikes(styled.strikes)
@@ -472,15 +487,15 @@ fn diff(s: &App, p: &Palette) -> El {
         .pb(TEXT_INSET_Y + (vh * 0.35).round())
         .on_edit(|s: &mut App| &mut s.preview.edit)
         .on_input_key(preview_key)
-        .on_input_paste(|s: &mut App, _, _| {
-            s.beep();
+        .on_input_paste(|_: &mut App, _, tx| {
+            tx.beep();
             true
         })
         .on_input_change(|s: &mut App, _| {
             // Read-only: anything that got through is put back.
             if s.preview.edit.text != s.preview.rendered.combined {
                 let sel = s.preview.edit.range();
-                let mut edit = TextEdit::new(s.preview.rendered.combined.clone());
+                let mut edit = crate::editing::text_edit(s.preview.rendered.combined.clone());
                 edit.focused = true;
                 let len = edit.text.len();
                 edit.set_caret(sel.1.min(len));

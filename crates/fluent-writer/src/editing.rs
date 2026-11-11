@@ -10,9 +10,20 @@
 //!   top and bottom without moving the caret (Shift-Home and Shift-End select, in Rune).
 //! - ⌥↑ and ⌥↓ on macOS, Ctrl+↑ and Ctrl+↓ elsewhere, go by paragraph.
 
-use rune::{Key, KeyEvent, Tx};
+use rune::{Key, KeyEvent, TextEdit, Tx, WordMotion};
 
 use crate::app::{App, SCROLL};
+
+/// A text field's editor that moves and deletes by word as AppKit's text views do: ⌥←/→ and
+/// ⌥⌫ (Ctrl off macOS) stop at Unicode word boundaries, so "one, two" stops after "one"
+/// rather than after the comma. Every field in the app starts from this.
+pub fn text_edit(text: impl Into<String>) -> TextEdit {
+    TextEdit::new(text.into()).word_motion(WordMotion::Unicode)
+}
+
+/// The undo name AppKit gives the edits its key bindings make (⌃K, ⌃Y, ⌃T, ⌃O, a list
+/// continued on Return): "Undo Typing". `EditorController.swift:740`
+pub const TYPING: &str = "Typing";
 
 /// What the editing keys keep between presses.
 #[derive(Default)]
@@ -110,21 +121,21 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
                     return true;
                 }
                 s.editing.kill = text[range.clone()].to_string();
-                s.apply(&writer_core::TextEdit::new(range.clone(), "", range.start..range.start), tx);
+                s.apply(&writer_core::TextEdit::new(range.clone(), "", range.start..range.start), TYPING, tx);
             }
             'y' => {
                 if !s.editing.kill.is_empty() {
                     let kill = s.editing.kill.clone();
                     let end = a + kill.len();
-                    s.apply(&writer_core::TextEdit::new(a..b, kill, end..end), tx);
+                    s.apply(&writer_core::TextEdit::new(a..b, kill, end..end), TYPING, tx);
                 }
             }
             't' => {
                 if a == b && let Some(edit) = transpose(text, a) {
-                    s.apply(&edit, tx);
+                    s.apply(&edit, TYPING, tx);
                 }
             }
-            'o' => s.apply(&writer_core::TextEdit::new(a..b, "\n", a..a), tx),
+            'o' => s.apply(&writer_core::TextEdit::new(a..b, "\n", a..a), TYPING, tx),
             'l' => crate::find::jump_to_selection(tx),
             _ => return false,
         }

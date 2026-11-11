@@ -36,7 +36,7 @@ impl App {
             }
             return;
         }
-        let mut edit = TextEdit::new(self.shown_title().to_string());
+        let mut edit = crate::editing::text_edit(self.shown_title().to_string());
         let len = edit.text.len();
         edit.set_selection(if select_all { 0 } else { len }, len);
         edit.focused = true;

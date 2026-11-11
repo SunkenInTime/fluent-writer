@@ -299,8 +299,33 @@ impl App {
             C::Reveal => crate::platform::REVEAL_TITLE.into(),
             C::ToggleSidebar if self.sidebar_visible => "Hide Sidebar".into(),
             C::FullScreen if self.win.full_screen => "Exit Full Screen".into(),
+            // AppKit's Edit menu names the step: "Undo Bold", "Redo Typing".
+            C::Undo => self.menu_edit().undo_name().map_or_else(|| fallback.into(), |n| format!("{fallback} {n}")),
+            C::Redo => self.menu_edit().redo_name().map_or_else(|| fallback.into(), |n| format!("{fallback} {n}")),
             _ => fallback.into(),
         }
+    }
+
+    /// The field the Edit menu's Undo and Redo act on: whichever showing field has the
+    /// keyboard, as AppKit's responder chain picks it, else the draft. (A field that went away
+    /// can keep its `focused` flag, so only showing ones count.)
+    pub fn menu_edit(&self) -> &rune::TextEdit {
+        if self.edit.focused {
+            return &self.edit;
+        }
+        [
+            (self.find.visible, &self.find.query),
+            (self.find.visible && self.find.replacing, &self.find.replacement),
+            (self.title.editing, &self.title.edit),
+            (self.composer.open.is_some(), &self.composer.edit),
+            (self.assist_visible, &self.assist.instruction),
+            (self.picker.open, &self.picker.query),
+            (self.remote.prompting, &self.remote.field),
+            (self.preview.is_active(), &self.preview.edit),
+        ]
+        .into_iter()
+        .find(|(showing, e)| *showing && e.focused)
+        .map_or(&self.edit, |(_, e)| e)
     }
 
     pub fn has_selection(&self) -> bool {
@@ -316,6 +341,8 @@ impl App {
             C::Reveal => self.draft.remote().is_none() && (self.draft.path().is_some() || !self.draft.body.is_empty()),
             C::CopyForTwitter | C::ShowAssist | C::AskCodex | C::AskClaude | C::AddComment => !self.edit.text.is_empty(),
             C::OlderVersion => !self.notes.versions().is_empty(),
+            C::Undo => self.menu_edit().can_undo(),
+            C::Redo => self.menu_edit().can_redo(),
             C::NewerVersion | C::UseThisVersion => self.preview.is_active(),
             _ => true,
         }
@@ -416,7 +443,8 @@ impl App {
             C::Cut => {
                 if !sel.is_empty() {
                     tx.copy(self.edit.selected().to_string());
-                    self.edit.insert("");
+                    // The step Rune's own Cut makes, named as AppKit names it.
+                    self.edit.undo_group_named("Cut", |e| e.insert(""));
                     self.text_did_change(tx);
                 }
             }
@@ -450,20 +478,21 @@ impl App {
                 let on = !self.prefs.text_replacement();
                 self.prefs.set_text_replacement(on);
             }
-            C::Bold => self.apply(&text_editing::toggle("**", text, sel), tx),
-            C::Italic => self.apply(&text_editing::toggle("*", text, sel), tx),
-            C::Strikethrough => self.apply(&text_editing::toggle("~~", text, sel), tx),
-            C::Link => self.apply(&text_editing::link(text, sel), tx),
-            C::Heading1 => self.apply(&text_editing::set_line_prefix(LinePrefix::Heading(1), text, sel), tx),
-            C::Heading2 => self.apply(&text_editing::set_line_prefix(LinePrefix::Heading(2), text, sel), tx),
-            C::Heading3 => self.apply(&text_editing::set_line_prefix(LinePrefix::Heading(3), text, sel), tx),
-            C::Body => self.apply(&text_editing::set_line_prefix(LinePrefix::Body, text, sel), tx),
-            C::BulletList => self.apply(&text_editing::set_line_prefix(LinePrefix::Bullet, text, sel), tx),
-            C::NumberedList => self.apply(&text_editing::set_line_prefix(LinePrefix::Numbered, text, sel), tx),
-            C::Quote => self.apply(&text_editing::set_line_prefix(LinePrefix::Quote, text, sel), tx),
+            // Each is one undo step with the Swift's action name. `Commands.swift:86-116`
+            C::Bold => self.apply(&text_editing::toggle("**", text, sel), "Bold", tx),
+            C::Italic => self.apply(&text_editing::toggle("*", text, sel), "Italic", tx),
+            C::Strikethrough => self.apply(&text_editing::toggle("~~", text, sel), "Strikethrough", tx),
+            C::Link => self.apply(&text_editing::link(text, sel), "Link", tx),
+            C::Heading1 => self.apply(&text_editing::set_line_prefix(LinePrefix::Heading(1), text, sel), "Heading", tx),
+            C::Heading2 => self.apply(&text_editing::set_line_prefix(LinePrefix::Heading(2), text, sel), "Heading", tx),
+            C::Heading3 => self.apply(&text_editing::set_line_prefix(LinePrefix::Heading(3), text, sel), "Heading", tx),
+            C::Body => self.apply(&text_editing::set_line_prefix(LinePrefix::Body, text, sel), "Body", tx),
+            C::BulletList => self.apply(&text_editing::set_line_prefix(LinePrefix::Bullet, text, sel), "Bulleted List", tx),
+            C::NumberedList => self.apply(&text_editing::set_line_prefix(LinePrefix::Numbered, text, sel), "Numbered List", tx),
+            C::Quote => self.apply(&text_editing::set_line_prefix(LinePrefix::Quote, text, sel), "Blockquote", tx),
             C::Indent | C::Outdent => {
                 if let Some(e) = text_editing::indent_edit(text, sel, command == C::Outdent) {
-                    self.apply(&e, tx);
+                    self.apply(&e, if command == C::Outdent { "Outdent" } else { "Indent" }, tx);
                 }
             }
             C::ToggleFocus => {

@@ -261,7 +261,7 @@ fn a_flash_gets_its_own_width_and_returns_to_the_status() {
     let status = info(&rt, "status");
     assert_eq!(status.text.as_deref(), Some("Copied draft as plain text · 1,234 characters"));
     assert!(status.rect[2] >= 45.0 * 12.0 * 0.6, "wide enough for the message: {}", status.rect[2]);
-    assert_eq!(info(&rt, "announcement").text.as_deref(), Some("Copied draft as plain text · 1,234 characters"));
+    assert_eq!(rt.announcement(), Some("Copied draft as plain text · 1,234 characters"), "announced");
     settle(&mut rt, 2.3);
     assert!(rt.state.transient.is_none(), "gone after 2.2 s");
 }
@@ -324,6 +324,36 @@ fn closing_with_a_failed_save_asks_once() {
     rt.update(|s, tx| s.window_closing(tx));
     assert!(rt.state.alerts.is_empty(), "the Swift showed the alert a second time here");
     writable(&dir);
+}
+
+/// The window's close button (Rune's close request): with a failed save the close is refused
+/// and the window stays up, as it was, with the alert; Keep Editing keeps it; Continue quits.
+/// A saved draft closes at once. `EditorController.swift:841-843`
+#[test]
+fn a_refused_close_keeps_the_window_up_with_the_alert() {
+    let (mut rt, dir) = failing("Precious");
+    let mut allowed = None;
+    rt.update(|s, tx| allowed = Some(s.close_requested(rune::CloseRequest::Window, tx)));
+    settle(&mut rt, 0.05);
+    assert_eq!(allowed, Some(false), "refused: the window stays up");
+    assert_eq!(rt.state.alert().expect("asks").message, "This draft couldn't be saved.");
+    press(&mut rt, Key::Enter, Mods::default());
+    settle(&mut rt, 0.05);
+    assert!(rt.state.alert().is_none() && !rt.state.documents.quitting, "Keep Editing stays");
+    rt.update(|s, tx| allowed = Some(s.close_requested(rune::CloseRequest::Window, tx)));
+    settle(&mut rt, 0.05);
+    assert_eq!(allowed, Some(false));
+    click(&mut rt, "alert-button-2");
+    assert!(rt.state.documents.quitting, "Continue quits");
+    rt.update(|s, tx| allowed = Some(s.close_requested(rune::CloseRequest::Quit, tx)));
+    assert_eq!(allowed, Some(true), "a passed check doesn't ask again");
+    assert!(rt.state.alerts.is_empty());
+    writable(&dir);
+
+    let (mut rt, _dir) = harness("");
+    type_text(&mut rt, "Saved fine");
+    rt.update(|s, tx| allowed = Some(s.close_requested(rune::CloseRequest::Window, tx)));
+    assert!(rt.state.documents.quitting && rt.state.alerts.is_empty(), "saved, so it quits without asking");
 }
 
 #[test]
@@ -507,15 +537,10 @@ fn the_context_menu_falls_back_to_the_app_where_rune_has_no_native_one() {
     rt.update(|s, _| s.edit.set_selection(0, 4));
     rt.update(|s, tx| s.open_context_menu(rune::PointerPress { x: 300.0, y: 200.0 }, tx));
     settle(&mut rt, 0.05);
-    if rune::popup_menu_supported() {
-        let menu = rt.popup_menu().expect("a native menu");
-        assert_eq!(menu.find("comment").unwrap().title(), "Comment on Selection…");
-    } else {
-        assert_eq!(rt.state.menus.open, Some(Source::Context));
-        click(&mut rt, "menu-row-3");
-        assert_eq!(rt.state.edit.text, "Some text", "Copy leaves the text");
-        assert_eq!(rt.state.menus.open, None);
-    }
+    assert_eq!(rt.state.menus.open, Some(Source::Context));
+    click(&mut rt, "menu-row-3");
+    assert_eq!(rt.state.edit.text, "Some text", "Copy leaves the text");
+    assert_eq!(rt.state.menus.open, None);
 }
 
 // MARK: Window

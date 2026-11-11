@@ -115,7 +115,7 @@ pub fn on_typed(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         let swap = swap.or_else(|| (s.prefs.smart_dashes() && c != '-').then(|| dash_before(before)).flatten().map(|r| (r, "—".to_string())));
         if let Some((range, with)) = swap {
             let end = range.start + with.len();
-            s.apply(&writer_core::TextEdit::new(range, with, end..end), tx);
+            s.apply(&writer_core::TextEdit::new(range, with, end..end), crate::editing::TYPING, tx);
             changed = true;
         }
     }

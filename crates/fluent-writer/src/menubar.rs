@@ -1,5 +1,6 @@
 //! The menus off macOS, where Rune has no native menu bar: a menu bar drawn in the top bar from
-//! `commands::MENUS`, and the editor's context menu where Rune has no native pop-up menu.
+//! `commands::MENUS`, and the editor's context menu where Rune has no native pop-up menu
+//! (elsewhere the draft field's own menu carries the app's items, `App::draft_menu_items`).
 //!
 //! The titles sit to the right of the sidebar button and fade with the rest of the chrome. When
 //! the window is too narrow for all six, they fold into one button that lists them as submenus.
@@ -66,6 +67,15 @@ pub struct MenuBar {
     pub context_offset: Option<usize>,
     /// The titles are folded into one button (set by the view's layout, read by the keys).
     pub folded: bool,
+    /// The platform has native pop-up menus, so the draft's context menu is its field's own
+    /// with the app's items first (`El::input_menu`); otherwise the app draws it.
+    pub native: bool,
+}
+
+impl MenuBar {
+    pub fn new() -> MenuBar {
+        MenuBar { native: rune::popup_menu_supported(), ..Default::default() }
+    }
 }
 
 /// A menu row as drawn.
@@ -133,14 +143,42 @@ impl App {
         }
     }
 
-    /// The editor's context menu: the comment item, then the text items.
+    /// The app's own items in the editor's context menu: the comment item, and "Show Comment"
+    /// when the menu is on a commented passage. `EditorController.swift:774-780`
+    fn comment_rows(&self) -> Vec<Row> {
+        let item = |id: &'static str, title: &str| Row { what: What::Pick(id), title: title.into(), shortcut: String::new(), enabled: true, checked: false };
+        let mut rows = vec![item("comment", if self.has_selection() { "Comment on Selection…" } else { "Comment on This Line…" })];
+        if self.menus.context_offset.and_then(|o| self.notes.comment_at(o)).is_some() {
+            rows.push(item("show-comment", "Show Comment"));
+        }
+        rows
+    }
+
+    /// The context menu opens on text `offset`: a commented passage there becomes the active
+    /// comment, as soon as the menu opens (oddity 18).
+    pub fn note_context_offset(&mut self, offset: Option<usize>) {
+        self.menus.context_offset = offset;
+        if let Some(id) = offset.and_then(|o| self.notes.comment_at(o)).map(|c| c.id.clone()) {
+            self.notes.set_active_comment(Some(id));
+        }
+    }
+
+    /// The app's items for the draft field's own menu (`El::input_menu`), which adds the
+    /// spelling suggestions, Cut, Copy and Paste after them.
+    pub fn draft_menu_items(&mut self, offset: usize) -> PopupMenu {
+        self.note_context_offset(Some(offset));
+        self.comment_rows().into_iter().fold(PopupMenu::new(), |menu, r| match r.what {
+            What::Pick(id) => menu.item(PopupItem::new(id, r.title).enabled(r.enabled)),
+            _ => menu.separator(),
+        })
+    }
+
+    /// The editor's context menu as the app draws it where there are no native menus: the
+    /// comment items, then the text items.
     pub fn context_rows(&self) -> Vec<Row> {
         let sel = self.has_selection();
         let item = |id: &'static str, title: &str, enabled: bool, checked: bool| Row { what: What::Pick(id), title: title.into(), shortcut: String::new(), enabled, checked };
-        let mut rows = vec![item("comment", if sel { "Comment on Selection…" } else { "Comment on This Line…" }, true, false)];
-        if self.menus.context_offset.and_then(|o| self.notes.comment_at(o)).is_some() {
-            rows.push(item("show-comment", "Show Comment", true, false));
-        }
+        let mut rows = self.comment_rows();
         rows.push(Row::separator());
         rows.push(item("cut", "Cut", sel, false));
         rows.push(item("copy", "Copy", sel, false));
@@ -150,30 +188,10 @@ impl App {
         rows
     }
 
-    /// The context menu as a native pop-up menu.
-    fn context_popup(&self) -> PopupMenu {
-        let mut menu = PopupMenu::new();
-        for r in self.context_rows() {
-            menu = match r.what {
-                What::Pick(id) => menu.item(PopupItem::new(id, r.title).enabled(r.enabled).checked(r.checked)),
-                _ => menu.separator(),
-            };
-        }
-        menu
-    }
-
-    /// A right-click in the text.
+    /// A right-click in the text, where the app draws the menu.
     pub fn open_context_menu(&mut self, press: PointerPress, tx: &mut Tx) {
-        if rune::popup_menu_supported() {
-            tx.popup_menu(self.context_popup(), press, |s: &mut App, picked, tx| {
-                if let Some(id) = picked {
-                    s.context_pick(id, tx);
-                }
-            });
-        } else {
-            self.menus.context_at = (press.x, press.y);
-            self.open_menu(Source::Context, false, tx);
-        }
+        self.menus.context_at = (press.x, press.y);
+        self.open_menu(Source::Context, false, tx);
     }
 
     pub fn context_pick(&mut self, id: &str, tx: &mut Tx) {

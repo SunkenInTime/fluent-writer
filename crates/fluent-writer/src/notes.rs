@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime};
 
-use rune::{Span, Tx, Waker};
+use rune::{Span, TextChange, Tx, Waker};
 use writer_core::{
     AssistExchange, Comment, CommentReply, DocumentNotes, DraftVersion, InboxCommand, InboxCommandKind, InboxResult, LiveState, NotesStore,
     VersionKind, text_units,
@@ -51,10 +51,6 @@ pub struct Notes {
     pub assist_tab: AssistTab,
     /// The draft text as comments last followed it.
     shadow: String,
-    /// The range an edit made through `App::apply` replaced, for the next text change.
-    expected: Option<Range<usize>>,
-    /// The selection before the next edit, as of the last frame.
-    pre_selection: (usize, usize),
     /// The selection the live state last saw.
     live_selection: (usize, usize),
     save_at: Option<f64>,
@@ -65,10 +61,6 @@ pub struct Notes {
     text_revision: u64,
     /// The app's name for the live state ("Fluent Writer" or "Fluent Writer Dev").
     pub app_name: String,
-    /// Times the app would have beeped (Rune has no system beep yet).
-    pub beeps: usize,
-    /// What screen readers should announce next (Rune has no announcement request yet).
-    pub announcement: String,
     worker: Worker,
 }
 
@@ -85,16 +77,12 @@ impl Notes {
             active_comment_id: None,
             assist_tab: AssistTab::Ask,
             shadow: String::new(),
-            expected: None,
-            pre_selection: (0, 0),
             live_selection: (0, 0),
             save_at: None,
             live_at: None,
             revision: 0,
             text_revision: 0,
             app_name: writer_core::AppVariant::Standard.app_name().to_string(),
-            beeps: 0,
-            announcement: String::new(),
             worker,
         }
     }
@@ -172,7 +160,8 @@ impl Notes {
             .filter_map(|c| {
                 let r = c.range.start.min(len)..c.range.end.min(len);
                 let active = self.active_comment_id.as_deref() == Some(c.id.as_str());
-                (r.start < r.end).then(|| Span::new(r.start, r.end).bg(if active { p.comment_highlight_active } else { p.comment_highlight }, 0.0))
+                // A temporary `.backgroundColor`: the line's whole height, square.
+                (r.start < r.end).then(|| Span::new(r.start, r.end).line_bg(if active { p.comment_highlight_active } else { p.comment_highlight }))
             })
             .collect()
     }
@@ -268,18 +257,8 @@ impl Notes {
 
     // MARK: Following edits
 
-    /// The selection before the next edit, so a typed or pasted replacement is placed exactly.
-    pub fn note_selection(&mut self, selection: (usize, usize)) {
-        self.pre_selection = selection;
-    }
-
-    /// The next text change is `range` (of the text before it) being replaced.
-    pub fn expect_edit(&mut self, range: Range<usize>) {
-        self.expected = Some(range);
-    }
-
     /// Moves every comment for one edit: `edited` is the new text's range afterwards and
-    /// `delta` the change in length, as `NSTextStorage` reports them.
+    /// `delta` the change in length, as `NSTextStorage` reports them. `NotesController.swift:65-75`
     fn follow(&mut self, edited: Range<usize>, delta: isize) -> bool {
         if self.notes.comments.is_empty() {
             return false;
@@ -296,16 +275,24 @@ impl Notes {
         true
     }
 
-    /// Follows the editor from the text comments last saw to `text`. `caret` is where the
-    /// selection ended up. Returns whether the text changed.
-    fn text_changed(&mut self, text: &str, caret: usize, now: f64) -> bool {
-        if self.shadow == text {
-            self.expected = None;
-            return false;
+    /// Follows the editor from the text comments last saw to `text`, through `changes`: what
+    /// each edit replaced, oldest first, as the draft's `TextEdit` reports them (typing, paste,
+    /// undo and redo, an input method's commit, the app's own edits). Returns whether the text
+    /// changed.
+    fn text_changed(&mut self, text: &str, mut changes: Vec<TextChange>, now: f64) -> bool {
+        if changes.is_empty() {
+            if self.shadow == text {
+                return false;
+            }
+            // Text that changed without a report (nothing in the app does this) is a replacement
+            // of everything: comments detach, then find their quotes again below.
+            changes.push(TextChange::new(0..self.shadow.len(), text.len()));
         }
-        let hint = self.expected.take().map(|r| (r.start, r.end)).unwrap_or(self.pre_selection);
-        let (edited, delta) = edit_between(&self.shadow, text, hint, caret);
-        if self.follow(edited, delta) {
+        let mut moved = false;
+        for c in changes {
+            moved |= self.follow(c.range.start..c.range.start + c.inserted, c.inserted as isize - c.range.len() as isize);
+        }
+        if moved {
             self.schedule_save(now);
         }
         self.shadow = text.to_string();
@@ -394,10 +381,10 @@ impl App {
             c.reanchor(&n.shadow);
         }
         n.active_comment_id = None;
-        n.expected = None;
-        let sel = self.edit.range();
-        n.pre_selection = sel;
-        n.live_selection = sel;
+        // Edits made before this draft was shown were followed already, or belong to another.
+        self.edit.take_changes();
+        let n = &mut self.notes;
+        n.live_selection = self.edit.range();
         n.revision += 1;
         n.text_revision += 1;
         n.schedule_live_state(self.now);
@@ -425,9 +412,8 @@ impl App {
     /// Runs after every change to the draft text: comments follow the edit.
     /// `NotesController.swift:65-75`, `EditorController.swift:538-549`
     pub fn notes_text_changed(&mut self) {
-        let caret = self.edit.range().1;
-        self.notes.text_changed(&self.edit.text, caret, self.now);
-        self.notes.pre_selection = self.edit.range();
+        let changes = self.edit.take_changes();
+        self.notes.text_changed(&self.edit.text, changes, self.now);
     }
 
     // MARK: Comments
@@ -498,7 +484,7 @@ impl App {
             self.close_preview(tx);
         }
         let Some(range) = comment_target_range(&self.edit.text, self.edit.range()) else {
-            self.beep();
+            tx.beep();
             return;
         };
         let quote = self.edit.text[range.clone()].to_string();
@@ -578,10 +564,10 @@ impl App {
         if edits.is_empty() {
             return true;
         }
+        // Comments follow each word edit as the field reports it (`text_did_change` below).
         let mut tracked = true;
-        let notes = &mut self.notes;
         self.edit.break_history_group();
-        self.edit.undo_group(|e| {
+        self.edit.undo_group_named("Use Version", |e| {
             for (range, text) in edits.iter().rev() {
                 let len = e.text.len();
                 if range.end > len || !e.text.is_char_boundary(range.start) || !e.text.is_char_boundary(range.end) {
@@ -589,19 +575,15 @@ impl App {
                 }
                 e.set_selection(range.start, range.end);
                 e.insert(text);
-                notes.follow(range.start..range.start + text.len(), text.len() as isize - range.len() as isize);
             }
             if e.text != target {
                 // Fall back to one replacement if the word edits didn't land exactly.
                 let old = e.text.len();
                 e.set_selection(0, old);
                 e.insert(target);
-                notes.follow(0..target.len(), target.len() as isize - old as isize);
                 tracked = false;
             }
         });
-        self.notes.shadow = self.edit.text.clone();
-        self.notes.text_revision += 1;
         let first = edits[0].0.start.min(self.edit.text.len());
         self.edit.set_caret(first);
         self.text_did_change(tx);
@@ -642,7 +624,6 @@ impl App {
                 changed = true;
             }
         }
-        self.notes.pre_selection = sel;
         if self.notes.save_at.is_some_and(|t| t <= self.now) {
             self.notes.flush_save();
         }
@@ -705,10 +686,6 @@ impl App {
         any
     }
 
-    /// Records a beep where the Swift app called `NSSound.beep()`.
-    pub fn beep(&mut self) {
-        self.notes.beeps += 1;
-    }
 }
 
 /// The span a new comment attaches to: the selection, or the current line when nothing is
@@ -720,46 +697,6 @@ pub fn comment_target_range(text: &str, selection: (usize, usize)) -> Option<Ran
     let lead = s.len() - s.trim_start().len();
     let trimmed = s.trim();
     (!trimmed.is_empty()).then(|| r.start + lead..r.start + lead + trimmed.len())
-}
-
-/// The single edit that turns `old` into `new`: the new text's range and the change in length.
-/// `hint` is the selection just before the change: when replacing it explains the change (typing,
-/// pasting or deleting a selection), that is the edit. Otherwise the smallest changed window
-/// is used, slid to end at the caret (or, for a deletion, start there) when the text around it
-/// repeats, so typing "a" after "a" lands where the caret was.
-pub fn edit_between(old: &str, new: &str, hint: (usize, usize), caret: usize) -> (Range<usize>, isize) {
-    let delta = new.len() as isize - old.len() as isize;
-    let fits = |a: usize, old_len: usize, new_len: usize| {
-        a + old_len <= old.len()
-            && a + new_len <= new.len()
-            && old.is_char_boundary(a)
-            && new.is_char_boundary(a)
-            && old.is_char_boundary(a + old_len)
-            && new.is_char_boundary(a + new_len)
-            && old.as_bytes()[..a] == new.as_bytes()[..a]
-            && old.as_bytes()[a + old_len..] == new.as_bytes()[a + new_len..]
-    };
-    let (x, y) = (hint.0.min(hint.1), hint.0.max(hint.1));
-    let inserted = (y - x) as isize + delta;
-    if y <= old.len() && inserted >= 0 && fits(x, y - x, inserted as usize) {
-        return (x..x + inserted as usize, delta);
-    }
-    let (ob, nb) = (old.as_bytes(), new.as_bytes());
-    let mut p = ob.iter().zip(nb).take_while(|(a, b)| a == b).count();
-    while !old.is_char_boundary(p) {
-        p -= 1;
-    }
-    let room = old.len().min(new.len()) - p;
-    let mut s = ob.iter().rev().zip(nb.iter().rev()).take(room).take_while(|(a, b)| a == b).count();
-    while !old.is_char_boundary(old.len() - s) {
-        s -= 1;
-    }
-    let (old_len, new_len) = (old.len() - p - s, new.len() - p - s);
-    let wanted = if new_len > 0 { caret.checked_sub(new_len) } else { Some(caret) };
-    if let Some(a) = wanted.filter(|a| *a < p && fits(*a, old_len, new_len)) {
-        return (a..a + new_len, delta);
-    }
-    (p..p + new_len, delta)
 }
 
 /// A shortcut as the menus print it on this platform: "⇧⌘M" or "Ctrl+Shift+M".
@@ -949,21 +886,6 @@ mod app_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn edit_between_places_typing_at_the_caret() {
-        // "a" typed after the first "a" of "aa": the diff alone can't tell which "a" is new.
-        assert_eq!(edit_between("aa", "aaa", (1, 1), 2), (1..2, 1));
-        // Backspace at 2 in "aaa".
-        assert_eq!(edit_between("aaa", "aa", (2, 2), 1), (1..1, -1));
-        // A selection replaced.
-        assert_eq!(edit_between("hello world", "help world", (0, 5), 4), (0..4, -1));
-        // Undo with an unrelated hint falls back to the smallest window.
-        assert_eq!(edit_between("one two", "one", (0, 0), 3), (3..3, -4));
-        // Multi-byte text stays on character boundaries.
-        assert_eq!(edit_between("a😀b", "a😀😀b", (5, 5), 9), (5..9, 4));
-        assert_eq!(edit_between("é", "è", (0, 0), 2), (0..2, 0));
-    }
 
     #[test]
     fn target_is_the_trimmed_line_without_a_selection() {

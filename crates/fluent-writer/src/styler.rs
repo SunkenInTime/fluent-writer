@@ -110,7 +110,8 @@ fn style_inline(span: &MarkdownInlineSpan, p: &Palette, out: &mut Styled) {
         Inline::Strong => out.spans.push(Span::new(r.start, r.end).weight(700.0)),
         Inline::Emphasis => out.spans.push(Span::new(r.start, r.end).italic()),
         Inline::Strikethrough => out.strikes.push((c.start, c.end, Some(p.quiet))),
-        Inline::Code => out.spans.push(Span::new(r.start, r.end).bg(p.code_background, 0.0)),
+        // `.backgroundColor`: the line's whole height, square. `MarkdownStyler.swift:133-134`
+        Inline::Code => out.spans.push(Span::new(r.start, r.end).line_bg(p.code_background)),
         Inline::Link => {
             out.spans.push(Span::new(c.start, c.end).underline(p.markup));
             if let Some(u) = &span.url_range {

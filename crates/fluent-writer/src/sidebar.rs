@@ -388,9 +388,10 @@ impl App {
             Some(FolderRoot::Local(path)) => Some(path.clone()),
             _ => None,
         };
-        // Rune's dialog options carry a title only: the Swift panel's button ("Open Folder") and
-        // message can't be set, so the title carries the message.
-        let options = FileDialogOptions { title: "Choose a folder to list its Markdown and text files in the sidebar.".into(), directory, ..Default::default() };
+        // `RemoteEditing.swift:78-92`. The Mac's panel shows the prompt and the message; off the Mac the message is also the
+        // title, as Windows shows neither and the Linux portal no message.
+        let message = "Choose a folder to list its Markdown and text files in the sidebar.";
+        let options = FileDialogOptions { title: message.into(), directory, ..Default::default() }.prompt("Open Folder").message(message);
         tx.open_folder(options, |s: &mut App, result, tx| {
             if let Ok(Some(path)) = result {
                 if !s.sidebar_visible {

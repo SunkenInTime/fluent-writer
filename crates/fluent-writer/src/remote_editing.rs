@@ -149,7 +149,7 @@ impl Remote {
             status: RemoteStatus::Idle,
             uploader: Uploader::new(),
             prompting: false,
-            field: TextEdit::new(""),
+            field: crate::editing::text_edit(""),
             leaving: None,
             open_generation: 0,
             reads: Latest::default(),
@@ -192,7 +192,6 @@ impl App {
             let body = self.draft.saved_body().to_string();
             self.remote.uploader.upload_now(&self.remote.ssh, self.draft.clone(), body);
             self.remote.leaving = Some(Leaving { host: loc.host_name().to_string(), then });
-            crate::documents::bring_window_back();
             return;
         }
         then(self, tx);
@@ -234,7 +233,7 @@ impl App {
     /// one and selected.
     pub fn open_over_ssh(&mut self) {
         let last = self.prefs.last_ssh_location().to_string();
-        let mut field = TextEdit::new(last.clone());
+        let mut field = crate::editing::text_edit(last.clone());
         field.set_selection(0, last.len());
         field.focused = true;
         self.remote.field = field;
@@ -371,7 +370,6 @@ impl App {
                     }
                 }),
         );
-        crate::documents::bring_window_back();
     }
 
     /// This module's share of `App::poll`. Returns whether anything the view reads changed.

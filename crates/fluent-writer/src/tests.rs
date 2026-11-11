@@ -602,3 +602,204 @@ fn the_draft_field_fills_the_editor_even_with_a_word_wider_than_the_column() {
     assert_eq!(ys, [96.0, 96.0, 96.0, 154.0, 154.0, 154.0]);
     assert_eq!(rt.state.field_rect, [0.0, 40.0, 1060.0, 720.0]);
 }
+
+// MARK: Word stops, named undo, the draft's own menu, the unfocused selection, dialogs
+
+fn word_mods() -> Mods {
+    if cfg!(target_os = "macos") { Mods { alt: true, ..Mods::default() } } else { Mods { ctrl: true, cmd: true, ..Mods::default() } }
+}
+
+/// ⌥←/→ and ⌥⌫ stop at Unicode word boundaries, as AppKit's text views do: past the comma,
+/// not at it, and "don't" is one word. The find field moves the same way.
+#[test]
+fn word_keys_stop_at_word_boundaries_as_appkit_does() {
+    let (mut rt, _dir) = harness("one, don't two");
+    rt.update(|s, _| s.edit.set_caret(0));
+    press(&mut rt, Key::Right, word_mods());
+    assert_eq!(sel(&rt), (3, 3), "after \"one\", before the comma");
+    press(&mut rt, Key::Right, word_mods());
+    assert_eq!(sel(&rt), (10, 10), "after \"don't\"");
+    press(&mut rt, Key::Left, word_mods());
+    assert_eq!(sel(&rt), (5, 5), "back to the start of \"don't\"");
+    rt.update(|s, _| s.edit.set_caret(5));
+    press(&mut rt, Key::Backspace, word_mods());
+    assert_eq!(rt.state.edit.text, "don't two", "⌥⌫ takes the word and its comma");
+    command(&mut rt, 'f', false, false);
+    settle(&mut rt, 0.1);
+    type_text(&mut rt, "a, b");
+    rt.update(|s, _| s.find.query.set_caret(0));
+    press(&mut rt, Key::Right, word_mods());
+    assert_eq!(rt.state.find.query.range(), (1, 1), "the find field stops after \"a\" too");
+}
+
+/// The Edit menu names the step Undo and Redo act on, as AppKit's does, and is disabled with
+/// nothing to undo or redo. `EditorController.swift:767`, `Commands.swift:86-116`
+#[test]
+fn undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do() {
+    let (mut rt, _dir) = harness("- one");
+    let undo_redo = |rt: &Runtime<App>| {
+        let rows = rt.state.menu_rows(crate::commands::EDIT);
+        ((rows[0].title.clone(), rows[0].enabled), (rows[1].title.clone(), rows[1].enabled))
+    };
+    assert_eq!(undo_redo(&rt), (("Undo".into(), false), ("Redo".into(), false)));
+    rt.update(|s, _| s.edit.set_selection(2, 5));
+    command(&mut rt, 'b', false, false);
+    assert_eq!(undo_redo(&rt), (("Undo Bold".into(), true), ("Redo".into(), false)));
+    command(&mut rt, 'z', false, false);
+    assert_eq!(undo_redo(&rt), (("Undo".into(), false), ("Redo Bold".into(), true)));
+    // Each format command and key has the Swift's name.
+    let named = |rt: &mut Runtime<App>, c: crate::commands::Command| {
+        rt.update(|s, tx| s.run(c, tx));
+        rt.frame(1.0 / 60.0);
+        rt.state.edit.undo_name().map(|n| n.into_owned())
+    };
+    use crate::commands::Command as C;
+    rt.update(|s, _| s.edit.set_selection(2, 5));
+    for (c, name) in [
+        (C::Italic, "Italic"),
+        (C::Strikethrough, "Strikethrough"),
+        (C::Link, "Link"),
+        (C::Heading2, "Heading"),
+        (C::Body, "Body"),
+        (C::BulletList, "Bulleted List"),
+        (C::NumberedList, "Numbered List"),
+        (C::Quote, "Blockquote"),
+    ] {
+        assert_eq!(named(&mut rt, c).as_deref(), Some(name), "{c:?}");
+    }
+    rt.update(|s, _| s.edit.replace_text("- one"));
+    for (c, name) in [(C::Indent, "Indent"), (C::Outdent, "Outdent")] {
+        assert_eq!(named(&mut rt, c).as_deref(), Some(name), "{c:?}");
+    }
+    // A list continued on Return is "Typing", Tab in a list "Indent". `EditorController.swift:738-752`
+    rt.update(|s, _| s.edit.set_caret(5));
+    press(&mut rt, Key::Enter, Mods::default());
+    assert_eq!(rt.state.edit.text, "- one\n- ");
+    assert_eq!(rt.state.edit.undo_name().as_deref(), Some("Typing"));
+    press(&mut rt, Key::Tab, Mods::default());
+    assert_eq!(rt.state.edit.undo_name().as_deref(), Some("Indent"));
+    assert_eq!(undo_redo(&rt).0, ("Undo Indent".into(), true));
+}
+
+/// Replace is one "Replace" step and Replace All one "Replace All" step, as AppKit's find bar
+/// names them.
+#[test]
+fn replace_steps_are_named() {
+    let (mut rt, _dir) = harness(CATS);
+    rt.update(|s, _| {
+        s.find.query.replace_text("cat");
+        s.find.replacement.replace_text("ox");
+    });
+    rt.update(|s, tx| s.run(crate::commands::Command::FindAndReplace, tx));
+    settle(&mut rt, 0.1);
+    click(&mut rt, "replace-one");
+    click(&mut rt, "replace-one");
+    assert_eq!(rt.state.edit.undo_name().as_deref(), Some("Replace"));
+    click(&mut rt, "replace-all");
+    assert_eq!(rt.state.edit.undo_name().as_deref(), Some("Replace All"));
+}
+
+/// Where the platform has native menus, the draft's menu is its field's own (spelling
+/// suggestions, Cut, Copy, Paste) with the comment items first; the commented passage it opens
+/// on becomes the active comment. `EditorController.swift:774-786`
+#[test]
+fn the_drafts_own_menu_puts_the_comment_items_first() {
+    let (mut rt, _dir) = harness("One two three.");
+    rt.state.menus.native = true;
+    let id = rt.state.add_comment(4..7, "why two?").unwrap();
+    rt.update(|s, _| s.edit.set_caret(5));
+    settle(&mut rt, 0.1);
+    // The Menu key opens it at the caret's offset.
+    press(&mut rt, Key::ContextMenu, Mods::default());
+    let menu = rt.popup_menu().expect("the field's own menu is open").clone();
+    // The menu's entries aren't public; their order shows in its debug form.
+    let shown = format!("{menu:?}");
+    let at = |what: &str| shown.find(what).unwrap_or_else(|| panic!("{what} in {shown}"));
+    assert!(at("\"comment\"") < at("\"show-comment\"") && at("\"show-comment\"") < at("Separator") && at("Separator") < at("\"cut\""), "{shown}");
+    assert!(at("\"cut\"") < at("\"copy\"") && at("\"copy\"") < at("\"paste\""), "Rune's own items follow: {shown}");
+    assert_eq!(menu.find("comment").unwrap().title(), "Comment on This Line…");
+    assert_eq!(menu.find("show-comment").unwrap().title(), "Show Comment");
+    assert_eq!(rt.state.notes.active_comment_id(), Some(id.as_str()), "active as soon as the menu opens");
+    rt.resolve_popup(Some("show-comment")).unwrap();
+    settle(&mut rt, 0.1);
+    assert!(rt.state.assist_visible && rt.state.notes.assist_tab == crate::notes::AssistTab::Comments);
+    // Off a comment, with a selection, there is only the comment item before Rune's.
+    rt.update(|s, _| s.edit.set_selection(8, 13));
+    rt.state.assist_visible = false;
+    settle(&mut rt, 0.1);
+    rt.update(|_, tx| tx.focus(crate::app::DRAFT, false));
+    settle(&mut rt, 0.1);
+    press(&mut rt, Key::ContextMenu, Mods::default());
+    let menu = rt.popup_menu().expect("open again").clone();
+    assert_eq!(menu.find("comment").unwrap().title(), "Comment on Selection…");
+    assert!(menu.find("show-comment").is_none());
+    rt.resolve_popup(Some("comment")).unwrap();
+    settle(&mut rt, 0.2);
+    assert!(rt.state.composer.is_open(), "Comment on Selection… opens the composer");
+}
+
+/// While another field has the keyboard, the draft keeps its selection and draws it in
+/// AppKit's grey, from the field's own selection style rather than a highlight span.
+#[test]
+fn the_draft_keeps_its_selection_while_the_composer_has_the_keyboard() {
+    let (mut rt, _dir) = harness("One two three.");
+    rt.update(|s, _| s.edit.set_selection(4, 7));
+    command(&mut rt, 'm', false, true);
+    settle(&mut rt, 0.2);
+    assert!(rt.state.composer.open.is_some());
+    assert!(!rt.state.edit.focused, "the composer has the keyboard");
+    assert_eq!(sel(&rt), (4, 7), "the draft keeps its selection");
+    let p = crate::theme::Palette::new(false);
+    assert!(rt.state.notes.highlights(rt.state.edit.text.len(), &p).is_empty(), "no stand-in highlight");
+    assert_eq!(crate::version_preview::selection_style(&p), rune::SelectionStyle::new(p.selection).inactive(p.unfocused_selection, None).unfocused(p.unfocused_selection, None));
+}
+
+/// Find matches fill the line's whole height, square; the current one keeps the app's ring.
+#[test]
+fn find_matches_fill_the_line_height() {
+    let (mut rt, _dir) = harness(CATS);
+    command(&mut rt, 'f', false, false);
+    settle(&mut rt, 0.1);
+    type_text(&mut rt, "cat");
+    let p = crate::theme::Palette::new(false);
+    let hl = crate::find::highlights(&rt.state, &p);
+    assert_eq!(hl[0], rune::TextHighlight::new(4..7, p.find_current).ring(p.caret, 1.0).key(crate::find::CURRENT));
+    assert_eq!(hl[1], rune::TextHighlight::new(13..16, p.find_match).line_bg());
+}
+
+/// Open Folder…'s panel has the Swift's button and message. `RemoteEditing.swift:84-85`
+#[test]
+fn open_folder_names_its_button_and_explains_itself() {
+    let (mut rt, _dir) = harness("");
+    rt.update(|s, tx| s.run(crate::commands::Command::OpenFolder, tx));
+    rt.frame(1.0 / 60.0);
+    let (kind, options) = rt.file_dialog().expect("a folder dialog");
+    assert_eq!(kind, rune::FileDialogKind::Folder);
+    assert_eq!(options.prompt.as_deref(), Some("Open Folder"));
+    assert_eq!(options.message.as_deref(), Some("Choose a folder to list its Markdown and text files in the sidebar."));
+}
+
+/// Format › Image… picks several images at once, with the Swift's message, and inserts them
+/// all as one "Insert Images" step. `ImageBlocks.swift:361-374`, `ImageBlocks.swift:347-357`
+#[test]
+fn format_image_inserts_several_images_as_one_step() {
+    let (mut rt, dir) = harness("Before.");
+    let folder = dir.path().join("elsewhere");
+    std::fs::create_dir_all(&folder).unwrap();
+    let paths: Vec<_> = ["one.png", "two.png"].iter().map(|n| folder.join(n)).collect();
+    for p in &paths {
+        image::RgbaImage::from_pixel(4, 4, image::Rgba([0, 0, 0, 255])).save(p).unwrap();
+    }
+    rt.update(|s, tx| s.run(crate::commands::Command::Image, tx));
+    rt.frame(1.0 / 60.0);
+    assert!(rt.file_dialog_multiple(), "several files at once");
+    let (_, options) = rt.file_dialog().unwrap();
+    assert_eq!(options.message.as_deref(), Some("Images are copied into an images folder next to this draft."));
+    rt.resolve_file_dialog_paths(paths).unwrap();
+    settle(&mut rt, 0.1);
+    assert_eq!(rt.state.edit.text, "Before.\n\n![one](images/one.png)\n\n![two](images/two.png)");
+    assert_eq!(rt.state.status().0, "2 images added · copied to the images folder beside this draft");
+    assert_eq!(rt.state.edit.undo_name().as_deref(), Some("Insert Images"));
+    command(&mut rt, 'z', false, false);
+    assert_eq!(rt.state.edit.text, "Before.", "one step");
+}

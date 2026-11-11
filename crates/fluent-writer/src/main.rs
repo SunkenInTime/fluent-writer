@@ -137,8 +137,8 @@ fn main() {
     // The title bar is transparent with the content under it; only the top bar drags the window.
     .chrome(Chrome { full_size_content: true, traffic_lights: None, drag_regions: true })
     .window_options(opening.options)
-    // Closing hides the window first, so the leave check can bring it back to ask.
-    .keep_running()
+    // The leave check runs before the window closes; when it asks, the window stays up.
+    .on_close_request(|s, why, tx| s.close_requested(why, tx))
     .modifier_keys()
     .on_close(|s, tx| s.window_closing(tx))
     .on_quit(|s, tx| s.app_quitting(tx));

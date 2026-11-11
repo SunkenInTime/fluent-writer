@@ -95,7 +95,7 @@ impl App {
     /// File › Open…: saves, then shows the picker.
     pub fn open_picker(&mut self) {
         self.flush();
-        let mut query = TextEdit::new("");
+        let mut query = crate::editing::text_edit("");
         query.focused = true;
         let mut picker = Picker { open: true, query, all: self.library.recent_drafts(200), current: self.draft.path().map(PathBuf::from), ..Picker::default() };
         picker.filter(None);
