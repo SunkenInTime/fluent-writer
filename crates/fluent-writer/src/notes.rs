@@ -861,7 +861,9 @@ impl Worker {
         // The Swift app watched the inbox folder for writes and renames (`NotesController.swift:261-271`).
         let scan = jobs.clone();
         let watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-            if event.is_ok() {
+            // Only changes to the folder. On Linux, reading the folder (as a scan does) is
+            // itself an event, which would start another scan, forever.
+            if event.is_ok_and(|e| !e.kind.is_access()) {
                 let _ = scan.send(Job::Scan);
             }
         })
