@@ -17,6 +17,7 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 ureq = "3"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
 arboard = { version = "3.6", default-features = false, features = ["image-data", "wayland-data-control"] }
+notify = "8"
 
 [dev-dependencies]
 tempfile = "3"

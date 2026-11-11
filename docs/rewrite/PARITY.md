@@ -768,23 +768,23 @@ All format commands apply through the text system as one undo step with the name
 
 ## 15. Comments
 
-- [ ] Add Comment (⌥⌘M, toolbar, Comments tab button, context menu): target is the selection, or the current line when nothing is selected, trimmed of surrounding whitespace; beeps if empty. `CommentComposer.swift:118-126`, `CommentComposer.swift:138-140`
-- [ ] Adding a comment while previewing a version closes the preview first. `CommentComposer.swift:139`
-- [ ] The target text is selected and scrolled into view; chrome shown with no auto-hide. `CommentComposer.swift:142-144`
-- [ ] Composer popover, 320×150, transient (closes on click outside), animated, anchored to the first character of the target. `CommentComposer.swift:27-30`, `CommentComposer.swift:93-96`, `CommentComposer.swift:129-136`
-- [ ] Quote line: “<text>” with newlines as spaces, cut to 90 characters + "…", IBM Plex Mono Italic 11 pt, secondary-label colour, at (14, 124). `CommentComposer.swift:32-38`
-- [ ] Text area 296×84 at (12, 34), IBM Plex Mono 13 pt, label colour, caret `caret`, insets 2×4; accessibility label "Comment"; focused on open. `CommentComposer.swift:40-61`, `CommentComposer.swift:97`
-- [ ] Placeholder "What should change here?" for a new comment, hidden once text is typed. `CommentComposer.swift:63-72`
-- [ ] Hint "↩ save · esc cancel", IBM Plex Mono 10 pt, secondary colour, tooltip "Shift-Return adds a new line". `CommentComposer.swift:74-79`
-- [ ] Button "Comment" (new) or "Save" (editing), small rounded, IBM Plex Mono 11 pt, bottom-right 12 pt in. `CommentComposer.swift:81-88`
-- [ ] Return (not composing IME text) saves; Shift-Return or Option-Return inserts a newline; Esc cancels. `CommentComposer.swift:5-18`
-- [ ] Saving trims whitespace; empty body beeps and keeps the popover open. `CommentComposer.swift:100-107`
-- [ ] After saving a new comment: caret moves to the end of the commented text, the comment becomes active, and the footer flashes "<n> open comment(s) · ⇧⌘M to review and send". `CommentComposer.swift:145-154`
-- [ ] Comments are author "you", ordered by position. `NotesController.swift:117-128`
-- [ ] Open, attached comments are highlighted with `commentHighlight` behind the text; the active one with `commentHighlightActive`. Display-only colour. `NotesController.swift:162-171`
-- [ ] Comments follow their text as it is edited; a comment whose text is deleted becomes detached (no highlight). `NotesController.swift:65-75`
-- [ ] A detached open comment re-attaches when its quoted text reappears (e.g. after undo). `NotesController.swift:98-107`
-- [ ] Comments re-anchor by their quote when a draft is opened. `NotesController.swift:43-44`
+- [x] Add Comment (⌥⌘M, toolbar, Comments tab button, context menu): target is the selection, or the current line when nothing is selected, trimmed of surrounding whitespace; beeps if empty. `CommentComposer.swift:118-126`, `CommentComposer.swift:138-140` Built in `comment_composer.rs` and `notes.rs` (`App::add_comment_command`); the toolbar, Comments-tab and context-menu entry points call it from their own modules. Rune has no system beep: beeps are counted in `Notes::beeps`.
+- [x] Adding a comment while previewing a version closes the preview first. `CommentComposer.swift:139`
+- [x] The target text is selected and scrolled into view; chrome shown with no auto-hide. `CommentComposer.swift:142-144`
+- [x] Composer popover, 320×150, transient (closes on click outside), animated, anchored to the first character of the target. `CommentComposer.swift:27-30`, `CommentComposer.swift:93-96`, `CommentComposer.swift:129-136` Drawn in the app (card, arrow, shadow) since Rune has no popover. Not done: the open and close animation. The card uses `card` and `hairline` in place of AppKit's popover material.
+- [x] Quote line: “<text>” with newlines as spaces, cut to 90 characters + "…", IBM Plex Mono Italic 11 pt, secondary-label colour, at (14, 124). `CommentComposer.swift:32-38` Secondary label colour is AppKit's black α0.5 / white α0.55.
+- [x] Text area 296×84 at (12, 34), IBM Plex Mono 13 pt, label colour, caret `caret`, insets 2×4; accessibility label "Comment"; focused on open. `CommentComposer.swift:40-61`, `CommentComposer.swift:97`
+- [x] Placeholder "What should change here?" for a new comment, hidden once text is typed. `CommentComposer.swift:63-72`
+- [x] Hint "↩ save · esc cancel", IBM Plex Mono 10 pt, secondary colour, tooltip "Shift-Return adds a new line". `CommentComposer.swift:74-79`
+- [x] Button "Comment" (new) or "Save" (editing), small rounded, IBM Plex Mono 11 pt, bottom-right 12 pt in. `CommentComposer.swift:81-88` The small rounded bezel is approximated: `card` fill, 1 pt `hairline`, radius 5, 22 pt tall, title width + 20.
+- [x] Return (not composing IME text) saves; Shift-Return or Option-Return inserts a newline; Esc cancels. `CommentComposer.swift:5-18`
+- [x] Saving trims whitespace; empty body beeps and keeps the popover open. `CommentComposer.swift:100-107`
+- [x] After saving a new comment: caret moves to the end of the commented text, the comment becomes active, and the footer flashes "<n> open comment(s) · ⇧⌘M to review and send". `CommentComposer.swift:145-154` The shortcut in the flash is the platform's ("Ctrl+Shift+M" off the Mac).
+- [x] Comments are author "you", ordered by position. `NotesController.swift:117-128`
+- [x] Open, attached comments are highlighted with `commentHighlight` behind the text; the active one with `commentHighlightActive`. Display-only colour. `NotesController.swift:162-171` Drawn with `Span::bg`, which shifts with IME preedit (`El::text_highlight` does not). Rune draws span backgrounds as rounded boxes around the glyphs, not AppKit's square full-line-height fill.
+- [x] Comments follow their text as it is edited; a comment whose text is deleted becomes detached (no highlight). `NotesController.swift:65-75` Rune reports no edited range, so `notes::edit_between` works it out from the text before and after, the selection before the edit and the caret after; `App::apply` passes its exact range.
+- [x] A detached open comment re-attaches when its quoted text reappears (e.g. after undo). `NotesController.swift:98-107`
+- [x] Comments re-anchor by their quote when a draft is opened. `NotesController.swift:43-44`
 - [ ] Comments tab: "Add Comment" small button top-left (tooltip "Comment on the selection or the current line (⌥⌘M)"); "Show resolved" small checkbox top-right, IBM Plex Mono 11 pt, hidden when there are no resolved comments. `AssistController.swift:263-269`, `AssistController.swift:351-355`, `AssistController.swift:492`
 - [ ] List shows open comments, plus resolved ones when "Show resolved" is ticked. `AssistController.swift:486`, `AssistController.swift:648-651`
 - [ ] Empty text (centred, IBM Plex Mono 12 pt, `quiet`): "Select some text, or put the caret on a line, and press ⌥⌘M to leave a comment.\n\nWrite as many as you like, then send them all at once. The agent's fixes come back as a version you can preview." `AssistController.swift:273-275`
@@ -794,13 +794,13 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Card quote “<text>” (newlines as spaces), IBM Plex Mono Italic 11 pt `quiet`, max 2 lines; detached adds " — no longer in the draft"; quote width leaves 72 pt for buttons. `AssistController.swift:535-536`, `AssistController.swift:561-562`
 - [ ] Card body IBM Plex Mono 12 pt `text`; each reply "<author>: <text>" 11 pt `quiet`. 12 pt padding, 10 pt top, 4 pt after the quote, 6 pt after others. `AssistController.swift:537-543`, `AssistController.swift:554-574`
 - [ ] Card buttons 18×18, top-right, 24 pt apart, `quiet`: resolve `checkmark.circle` "Resolve" (or `arrow.uturn.backward.circle` "Reopen" when resolved), `pencil` "Edit comment", `trash` "Delete comment". `AssistController.swift:544-547`, `AssistController.swift:568-572`
-- [ ] Clicking a card selects its text in the editor, scrolls to it (centres in focus modes), makes it active and closes any preview. `AssistController.swift:549`, `CommentComposer.swift:168-175`
+- [x] Clicking a card selects its text in the editor, scrolls to it (centres in focus modes), makes it active and closes any preview. `AssistController.swift:549`, `CommentComposer.swift:168-175` `App::reveal_comment`; the card is the Assist panel's.
 - [ ] Card accessibility: role button, press = click, label "Comment on “<first 60 chars of quote>”: <body>". `AssistController.swift:54-56`, `AssistController.swift:550`
-- [ ] Edit opens the composer pre-filled, button "Save", no placeholder; not available for detached comments. `CommentComposer.swift:157-165`
-- [ ] Resolve/Reopen toggles the resolved state. `AssistController.swift:623-627`
-- [ ] Delete removes the comment immediately (no confirmation). `AssistController.swift:634-638`
-- [ ] With the Comments tab open, moving the caret into a commented passage makes that comment active (shortest span wins when nested). `AssistController.swift:440-443`, `NotesController.swift:156-160`
-- [ ] Using a version resolves the comments that version addresses. `NotesController.swift:199-206`
+- [x] Edit opens the composer pre-filled, button "Save", no placeholder; not available for detached comments. `CommentComposer.swift:157-165` `App::edit_comment`; the card's pencil button is the Assist panel's.
+- [x] Resolve/Reopen toggles the resolved state. `AssistController.swift:623-627` `App::set_comment_resolved`; the button is the Assist panel's.
+- [x] Delete removes the comment immediately (no confirmation). `AssistController.swift:634-638` `App::delete_comment`; the button is the Assist panel's.
+- [x] With the Comments tab open, moving the caret into a commented passage makes that comment active (shortest span wins when nested). `AssistController.swift:440-443`, `NotesController.swift:156-160`
+- [x] Using a version resolves the comments that version addresses. `NotesController.swift:199-206`
 
 ---
 
@@ -811,7 +811,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Header text (IBM Plex Mono 11 pt, `quiet`): "Each agent reply becomes a version. Click one to preview it as a diff, then use it or go back. Using one keeps your current draft here too." `AssistController.swift:280-281`
 - [ ] First card "Your draft" (Medium 12 pt) with "What you're editing now", or "Back to editing (→ or esc)" while previewing; selected when not previewing; click closes the preview. `AssistController.swift:576-587`
 - [ ] Then one card per version, newest first: label (Medium 12 pt, 2 lines max, 20 pt narrower for the delete button); detail "<Saved draft | source> · <relative time>[ · used]"; feedback up to 3 lines, 11 pt `quiet`. `AssistController.swift:588-595`, `AssistController.swift:605-621`
-- [ ] Relative time: "just now" under 30 s, otherwise the short relative style. `VersionPreview.swift:330-335`
+- [x] Relative time: "just now" under 30 s, otherwise the short relative style. `VersionPreview.swift:330-335` `notes::relative_time`, in US English ("2 min. ago", "3 days ago").
 - [ ] Version card delete button `xmark` 14×14 "Delete version"; deleting the previewed version closes the preview. `AssistController.swift:596-598`, `AssistController.swift:640-646`
 - [ ] Clicking a version card previews it; the previewed card is selected. `AssistController.swift:579`, `AssistController.swift:600`
 - [ ] Version card accessibility label "<label>, <detail parts joined by ', '>". `AssistController.swift:601`
@@ -819,43 +819,43 @@ All format commands apply through the text system as one undo step with the name
 
 ### Preview
 
-- [ ] The preview replaces the editor (editor hidden) with a 44 pt bar on top and a read-only diff below. `VersionPreview.swift:169-178`, `VersionPreview.swift:127-131`
-- [ ] Bar background `banner`, 1 pt `hairline` along its bottom; accessibility role toolbar, label "Version preview". `VersionPreview.swift:22-30`, `VersionPreview.swift:121-122`
-- [ ] Bar left: `chevron.left` (tooltip "Older version (←)") at (12, 12) 20×20; position "<n>/<total>" IBM Plex Mono 11 pt `quiet` centred at x 34, min 34 pt wide; `chevron.right` ("Newer version (→)") after it. Chevrons tinted `text`. `VersionPreview.swift:95-103`, `VersionPreview.swift:142-145`
-- [ ] Position accessibility label "Version <n> of <total>"; position counts oldest = 1. `VersionPreview.swift:290-297`
-- [ ] Older button disabled at position 1; Newer is always enabled. `VersionPreview.swift:300`
-- [ ] Title (version label, Medium 12 pt `text`) at y 5 and detail (11 pt `quiet`) at y 22, starting 12 pt after the Newer button. `VersionPreview.swift:89-94`, `VersionPreview.swift:146-149`
-- [ ] Detail: "Saved draft" or "From <source>" · relative time · "same as your draft" or "+<added> −<removed> words" · "used before" if used. `VersionPreview.swift:293-299`
-- [ ] Right: "Use This Version" (Medium 11 pt, small rounded, tooltip "Replace your draft with this version (↩). Your current draft is kept in Versions."), 16 pt from the right; "Back to Draft" (11 pt, tooltip "Keep your draft as it is (esc)") 8 pt left of it. Both 22 pt tall at y 11. `VersionPreview.swift:104-116`, `VersionPreview.swift:138-141`
-- [ ] Use button disabled when the version is the same as the draft. `VersionPreview.swift:301`
-- [ ] Under 620 pt wide, "Back to Draft" is hidden; under 460 pt "Use This Version" becomes "Use". `VersionPreview.swift:132-137`
-- [ ] Title and detail hidden when their width is under 48 pt; when under 140 pt the bar's tooltip shows title and detail. `VersionPreview.swift:150-152`
-- [ ] Diff text uses the same column and horizontal inset as the editor, 40 pt top/bottom inset, 35% extra bottom space, no typewriter centring. `VersionPreview.swift:154-161`
-- [ ] Diff is word-level between the current draft and the version, with Markdown styling applied to the combined text. `VersionPreview.swift:242-270`
-- [ ] Inserted text: `inserted` colour on `insertedBackground`. `VersionPreview.swift:276-277`
-- [ ] Deleted text: `deleted` colour on `deletedBackground`, struck through in `deleted`. `VersionPreview.swift:278-282`
-- [ ] Line breaks inside changes are not painted. `VersionPreview.swift:306-320`
-- [ ] A space is added between a deletion and the insertion that follows when neither side has whitespace at the join. `VersionPreview.swift:251-254`
-- [ ] Word counts for +/− use the plain-text word count of each changed segment. `VersionPreview.swift:262-263`
-- [ ] Opening a preview scrolls to the first change (or top when none) and focuses the diff. `VersionPreview.swift:180-181`, `VersionPreview.swift:322-328`
-- [ ] Diff text is selectable and copyable but not editable. `VersionPreview.swift:69-71`
-- [ ] Keys in the preview: ← older, → newer, Esc back to the draft, Return/keypad Enter use; other keys behave normally. `VersionPreview.swift:6-20`
-- [ ] Timeline: versions oldest → newest, then your draft. ← from the draft opens the newest version; ← at the oldest beeps; → at the newest returns to the draft; → while not previewing beeps. `VersionPreview.swift:166-226`
-- [ ] Older/Newer/Use are also ⌥⌘←/⌥⌘→/⌥⌘↩ from anywhere. `MainMenu.swift:145-147`
-- [ ] Opening a preview announces "Previewing <label>. Left and right arrows switch versions, Return uses it, Escape goes back." `VersionPreview.swift:185-188`
-- [ ] Diff accessibility: label "Version preview", value = the version's full text, help "Inserted text is green, removed text is struck through." `VersionPreview.swift:78`, `VersionPreview.swift:302-303`
-- [ ] Preview re-renders when the draft or version list changes; closes if its version is deleted. `VersionPreview.swift:205-210`, `EditorController.swift:121-125`
-- [ ] Closing the preview shows the editor again and focuses it. `VersionPreview.swift:191-202`
-- [ ] Opening another document closes the preview. `EditorController.swift:323`
-- [ ] Requests sent while previewing build on that version. `AssistController.swift:707-708`
+- [x] The preview replaces the editor (editor hidden) with a 44 pt bar on top and a read-only diff below. `VersionPreview.swift:169-178`, `VersionPreview.swift:127-131` The preview is drawn over the draft, which stays mounted so its scroll position survives.
+- [x] Bar background `banner`, 1 pt `hairline` along its bottom; accessibility role toolbar, label "Version preview". `VersionPreview.swift:22-30`, `VersionPreview.swift:121-122`
+- [x] Bar left: `chevron.left` (tooltip "Older version (←)") at (12, 12) 20×20; position "<n>/<total>" IBM Plex Mono 11 pt `quiet` centred at x 34, min 34 pt wide; `chevron.right` ("Newer version (→)") after it. Chevrons tinted `text`. `VersionPreview.swift:95-103`, `VersionPreview.swift:142-145` Chevrons are SVG stand-ins for the SF Symbols.
+- [x] Position accessibility label "Version <n> of <total>"; position counts oldest = 1. `VersionPreview.swift:290-297`
+- [x] Older button disabled at position 1; Newer is always enabled. `VersionPreview.swift:300`
+- [x] Title (version label, Medium 12 pt `text`) at y 5 and detail (11 pt `quiet`) at y 22, starting 12 pt after the Newer button. `VersionPreview.swift:89-94`, `VersionPreview.swift:146-149`
+- [x] Detail: "Saved draft" or "From <source>" · relative time · "same as your draft" or "+<added> −<removed> words" · "used before" if used. `VersionPreview.swift:293-299`
+- [x] Right: "Use This Version" (Medium 11 pt, small rounded, tooltip "Replace your draft with this version (↩). Your current draft is kept in Versions."), 16 pt from the right; "Back to Draft" (11 pt, tooltip "Keep your draft as it is (esc)") 8 pt left of it. Both 22 pt tall at y 11. `VersionPreview.swift:104-116`, `VersionPreview.swift:138-141` Button bezel approximated as in the composer.
+- [x] Use button disabled when the version is the same as the draft. `VersionPreview.swift:301`
+- [ ] Under 620 pt wide, "Back to Draft" is hidden; under 460 pt "Use This Version" becomes "Use". `VersionPreview.swift:132-137` **Not ticked:** Built; not checked at those widths.
+- [ ] Title and detail hidden when their width is under 48 pt; when under 140 pt the bar's tooltip shows title and detail. `VersionPreview.swift:150-152` **Not ticked:** Built; not checked at those widths.
+- [x] Diff text uses the same column and horizontal inset as the editor, 40 pt top/bottom inset, 35% extra bottom space, no typewriter centring. `VersionPreview.swift:154-161`
+- [x] Diff is word-level between the current draft and the version, with Markdown styling applied to the combined text. `VersionPreview.swift:242-270`
+- [x] Inserted text: `inserted` colour on `insertedBackground`. `VersionPreview.swift:276-277`
+- [x] Deleted text: `deleted` colour on `deletedBackground`, struck through in `deleted`. `VersionPreview.swift:278-282`
+- [x] Line breaks inside changes are not painted. `VersionPreview.swift:306-320`
+- [x] A space is added between a deletion and the insertion that follows when neither side has whitespace at the join. `VersionPreview.swift:251-254`
+- [x] Word counts for +/− use the plain-text word count of each changed segment. `VersionPreview.swift:262-263`
+- [ ] Opening a preview scrolls to the first change (or top when none) and focuses the diff. `VersionPreview.swift:180-181`, `VersionPreview.swift:322-328` **Not ticked:** Built (`preview_poll`) and focus checked in tests; the scroll to a change below the fold was not checked on a long draft.
+- [x] Diff text is selectable and copyable but not editable. `VersionPreview.swift:69-71` A read-only `text_input`: typing, paste and cut beep and change nothing.
+- [x] Keys in the preview: ← older, → newer, Esc back to the draft, Return/keypad Enter use; other keys behave normally. `VersionPreview.swift:6-20`
+- [x] Timeline: versions oldest → newest, then your draft. ← from the draft opens the newest version; ← at the oldest beeps; → at the newest returns to the draft; → while not previewing beeps. `VersionPreview.swift:166-226`
+- [x] Older/Newer/Use are also ⌥⌘←/⌥⌘→/⌥⌘↩ from anywhere. `MainMenu.swift:145-147`
+- [ ] Opening a preview announces "Previewing <label>. Left and right arrows switch versions, Return uses it, Escape goes back." `VersionPreview.swift:185-188` **Not ticked:** Built as a polite live region (Rune has no announcement request); not checked with a screen reader.
+- [ ] Diff accessibility: label "Version preview", value = the version's full text, help "Inserted text is green, removed text is struck through." `VersionPreview.swift:78`, `VersionPreview.swift:302-303` **Not ticked:** Set (`label`, `a11y_value`, `description`); not checked with a screen reader.
+- [x] Preview re-renders when the draft or version list changes; closes if its version is deleted. `VersionPreview.swift:205-210`, `EditorController.swift:121-125`
+- [x] Closing the preview shows the editor again and focuses it. `VersionPreview.swift:191-202`
+- [x] Opening another document closes the preview. `EditorController.swift:323`
+- [x] Requests sent while previewing build on that version. `AssistController.swift:707-708` Exposed as `App::previewed_version` and `App::assist_source_text`; the sending is the Assist panel's.
 
 ### Using a version
 
-- [ ] Using a version that differs from the draft first keeps the current draft as a version "Your draft · <short time>" (source "you"), unless the draft is blank or an identical version exists. `VersionPreview.swift:340-345`, `NotesController.swift:189-197`
-- [ ] The draft is rewritten with word-level edits as one undo step "Use Version", so untouched text and comments on it stay put; falls back to replacing the whole text if the edits don't land exactly. `VersionPreview.swift:353-406`
-- [ ] Comments are settled after the rewrite (tracked ones keep their place, lost ones are searched by quote). `NotesController.swift:208-224`
-- [ ] The version is marked used, comments it addresses resolve, the preview closes, and the footer flashes "Version used · ⌘Z or Versions to go back". `VersionPreview.swift:348-350`
-- [ ] Caret goes to the first changed place. `VersionPreview.swift:402-404`
+- [x] Using a version that differs from the draft first keeps the current draft as a version "Your draft · <short time>" (source "you"), unless the draft is blank or an identical version exists. `VersionPreview.swift:340-345`, `NotesController.swift:189-197` The short time is US English with macOS 14's narrow no-break space before AM/PM.
+- [x] The draft is rewritten with word-level edits as one undo step "Use Version", so untouched text and comments on it stay put; falls back to replacing the whole text if the edits don't land exactly. `VersionPreview.swift:353-406`
+- [x] Comments are settled after the rewrite (tracked ones keep their place, lost ones are searched by quote). `NotesController.swift:208-224`
+- [x] The version is marked used, comments it addresses resolve, the preview closes, and the footer flashes "Version used · ⌘Z or Versions to go back". `VersionPreview.swift:348-350`
+- [x] Caret goes to the first changed place. `VersionPreview.swift:402-404`
 
 ---
 
@@ -877,12 +877,12 @@ All format commands apply through the text system as one undo step with the name
 
 ### What the app publishes and accepts
 
-- [ ] Live state file `<support>/Live.json` (pid, app name, path, remote location, title, selection, selected text, previewed version id), written 0.4 s after selection changes, comment adds, preview changes and document loads. `NotesController.swift:237-252`
-- [ ] Live state is deleted on quit; readers treat it as absent when the pid isn't running. `NotesController.swift:254-257`, `WriterCore/DocumentNotes.swift:308-312`
-- [ ] The app watches `<support>/Inbox/` and applies each command file (oldest first), deleting it and writing `Inbox/Results/<id>.json`. `NotesController.swift:261-308`, `WriterCore/DocumentNotes.swift:316-336`
-- [ ] Commands for the open draft apply to the live text and notes; a new version flashes "<agent> proposed a version · ⌥⌘V to see it"; a new comment flashes "<agent> added a comment". `NotesController.swift:279-293`
-- [ ] Commands for other files apply to that file's notes under the notes lock; if the file can't be read the result is "Couldn't read <path>." `NotesController.swift:294-305`
-- [ ] The inbox is also processed whenever a document loads. `NotesController.swift:49`
+- [x] Live state file `<support>/Live.json` (pid, app name, path, remote location, title, selection, selected text, previewed version id), written 0.4 s after selection changes, comment adds, preview changes and document loads. `NotesController.swift:237-252`
+- [x] Live state is deleted on quit; readers treat it as absent when the pid isn't running. `NotesController.swift:254-257`, `WriterCore/DocumentNotes.swift:308-312` Deleted when the app's state is dropped (window closed); a killed process leaves it, and readers ignore it because the pid is gone.
+- [x] The app watches `<support>/Inbox/` and applies each command file (oldest first), deleting it and writing `Inbox/Results/<id>.json`. `NotesController.swift:261-308`, `WriterCore/DocumentNotes.swift:316-336` Watched with the `notify` crate; reading, deleting and answering run on the notes worker thread.
+- [x] Commands for the open draft apply to the live text and notes; a new version flashes "<agent> proposed a version · ⌥⌘V to see it"; a new comment flashes "<agent> added a comment". `NotesController.swift:279-293`
+- [x] Commands for other files apply to that file's notes under the notes lock; if the file can't be read the result is "Couldn't read <path>." `NotesController.swift:294-305`
+- [x] The inbox is also processed whenever a document loads. `NotesController.swift:49`
 
 ### fluent-writer-mcp server
 

@@ -2,12 +2,15 @@
 
 mod app;
 mod commands;
+mod comment_composer;
 mod images;
 mod keys;
+mod notes;
 mod platform;
 mod prefs;
 mod styler;
 mod theme;
+mod version_preview;
 mod view;
 
 #[cfg(test)]
@@ -62,7 +65,9 @@ fn init() -> App {
             None => library.new_draft(),
         },
     };
-    App::new(library, prefs, document)
+    let mut app = App::new(library, prefs, document);
+    app.notes.app_name = variant.app_name().to_string();
+    app
 }
 
 fn main() {
@@ -72,7 +77,10 @@ fn main() {
         min_size: Some((420.0, 320.0)),
         poll: Some(|s, clock, tx| s.poll(clock, tx)),
         on_key: Some(keys::window_key),
-        setup: Some(|s, waker| s.images.setup(waker)),
+        setup: Some(|s, waker| {
+            s.images.setup(waker.clone());
+            s.notes.set_waker(waker);
+        }),
         ..AppSpec::new("Fluent Writer", (1060.0, 760.0), init, view::view)
     });
 }

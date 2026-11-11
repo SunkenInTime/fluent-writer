@@ -67,6 +67,9 @@ pub struct App {
     /// The sidebar is showing over the text because the pointer is at the left edge.
     pub sidebar_peeking: bool,
     pub assist_visible: bool,
+    pub notes: crate::notes::Notes,
+    pub composer: crate::comment_composer::Composer,
+    pub preview: crate::version_preview::Preview,
     pub library: DraftLibrary,
     pub draft: DraftDocument,
     pub edit: TextEdit,
@@ -128,6 +131,9 @@ impl App {
             sidebar_visible: prefs.show_sidebar(),
             sidebar_peeking: false,
             assist_visible: false,
+            notes: crate::notes::Notes::new(library.support_directory()),
+            composer: Default::default(),
+            preview: Default::default(),
             library,
             draft: document.clone(),
             edit: TextEdit::new(""),
@@ -219,6 +225,7 @@ impl App {
         self.recenter = Some(false);
         self.recenter_delay = 2;
         self.scroll_reset = true;
+        self.notes_document_loaded();
     }
 
     fn sync_document_from_view(&mut self) {
@@ -432,6 +439,7 @@ impl App {
 
     /// Runs after every change to the draft's text.
     pub fn text_did_change(&mut self, tx: &mut Tx) {
+        self.notes_text_changed();
         self.reparse();
         self.draft.body = self.edit.text.clone();
         let (a, b) = self.edit.range();
@@ -464,6 +472,7 @@ impl App {
     /// Applies an edit as one undo step and places the selection after it.
     pub fn apply(&mut self, edit: &writer_core::TextEdit, tx: &mut Tx) {
         let len = self.edit.text.len();
+        self.notes.expect_edit(edit.range.clone());
         self.edit.set_selection(edit.range.start.min(len), edit.range.end.min(len));
         self.edit.insert(&edit.replacement);
         let len = self.edit.text.len();
@@ -531,7 +540,15 @@ impl App {
             }
         }
         self.last_caret = tx.caret(DRAFT);
+        changed |= self.notes_poll(tx);
         changed
+    }
+
+    /// Brings the caret into view once the next frame has drawn it: centred in focus modes,
+    /// otherwise just readable.
+    pub fn reveal_caret(&mut self) {
+        self.recenter = Some(true);
+        self.recenter_delay = 1;
     }
 }
 

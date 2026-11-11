@@ -11,6 +11,9 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         s.run(command, tx);
         return true;
     }
+    if ev.key == Key::Escape && s.clear_active_comment() {
+        return true;
+    }
     s.user_is_typing();
     let (a, b) = s.edit.range();
     let sel = a.min(b)..a.max(b);
@@ -31,6 +34,9 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
 
 /// Keys that reach the window: shortcuts while nothing has focus, or that a field passed on.
 pub fn window_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if s.preview.is_active() {
+        return crate::version_preview::preview_key(s, ev, tx);
+    }
     match crate::commands::command_for(ev, tx) {
         Some(command) => {
             s.run(command, tx);
