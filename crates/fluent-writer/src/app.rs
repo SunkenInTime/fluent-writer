@@ -67,6 +67,8 @@ pub struct App {
     pub library: DraftLibrary,
     pub draft: DraftDocument,
     pub edit: TextEdit,
+    pub find: crate::find::Find,
+    pub editing: crate::editing::Editing,
     pub prefs: Prefs,
     pub lines: Vec<MarkdownLine>,
     pub focus: FocusUnit,
@@ -125,6 +127,8 @@ impl App {
             library,
             draft: document.clone(),
             edit: TextEdit::new(""),
+            find: Default::default(),
+            editing: Default::default(),
             focus: prefs.focus(),
             metrics: Metrics::new(prefs.text_size()),
             prefs,
@@ -166,7 +170,12 @@ impl App {
     /// The editor area's size: its share of the window less the top bar. The footer lies over
     /// its bottom.
     pub fn visible(&self) -> (f32, f32) {
-        (self.frame().editor_w, (self.window.1 - TOP_BAR_HEIGHT).max(0.0))
+        (self.frame().editor_w, (self.window.1 - self.draft_top()).max(0.0))
+    }
+
+    /// Where the draft's scroll view starts: under the top bar, and under the find bar while it shows.
+    pub fn draft_top(&self) -> f32 {
+        TOP_BAR_HEIGHT + self.find.height()
     }
 
     pub fn column(&self) -> Column {
@@ -349,7 +358,7 @@ impl App {
 
     /// The scroll viewport's offset, worked out from where the field was laid out.
     fn scroll_offset(&self) -> f32 {
-        TOP_BAR_HEIGHT - self.field_rect[1]
+        self.draft_top() - self.field_rect[1]
     }
 
     fn max_scroll(&self) -> f32 {
@@ -371,7 +380,7 @@ impl App {
     /// Keeps the caret line at the vertical middle of the editor area.
     fn center_caret(&self, caret: [f32; 4], animated: bool, tx: &mut Tx) {
         let (_, vh) = self.visible();
-        let mid = caret[1] + caret[3] / 2.0 - TOP_BAR_HEIGHT + self.scroll_offset();
+        let mid = caret[1] + caret[3] / 2.0 - self.draft_top() + self.scroll_offset();
         let target = (mid - vh / 2.0).round().clamp(0.0, self.max_scroll());
         self.scroll_to(target, animated, tx);
     }
@@ -381,7 +390,8 @@ impl App {
         let (_, vh) = self.visible();
         let lh = self.metrics.line_height;
         let off = self.scroll_offset();
-        let (min_y, max_y) = (caret[1] - TOP_BAR_HEIGHT + off, caret[1] + caret[3] - TOP_BAR_HEIGHT + off);
+        let top = self.draft_top();
+        let (min_y, max_y) = (caret[1] - top + off, caret[1] + caret[3] - top + off);
         let bottom_limit = off + vh - (FOOTER_HEIGHT + lh * 2.0).max(vh * 0.22);
         let top_limit = off + lh;
         let target = if max_y > bottom_limit {
@@ -453,14 +463,17 @@ impl App {
         self.selection_at = after(tx, self.now, 1.0);
     }
 
-    /// Applies an edit as one undo step and places the selection after it.
+    /// Applies an edit as one undo step and places the selection after it. Undo puts back the
+    /// text and the selection from before; redo the text and `selection_after`.
     pub fn apply(&mut self, edit: &writer_core::TextEdit, tx: &mut Tx) {
-        let len = self.edit.text.len();
-        self.edit.set_selection(edit.range.start.min(len), edit.range.end.min(len));
-        self.edit.insert(&edit.replacement);
-        let len = self.edit.text.len();
-        let s = &edit.selection_after;
-        self.edit.set_selection(s.start.min(len), s.end.min(len));
+        self.edit.undo_group(|e| {
+            let len = e.text.len();
+            e.set_selection(edit.range.start.min(len), edit.range.end.min(len));
+            e.insert(&edit.replacement);
+            let len = e.text.len();
+            let s = &edit.selection_after;
+            e.set_selection(s.start.min(len), s.end.min(len));
+        });
         self.text_did_change(tx);
     }
 

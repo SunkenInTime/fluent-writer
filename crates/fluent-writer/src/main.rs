@@ -2,10 +2,13 @@
 
 mod app;
 mod commands;
+mod editing;
+mod find;
 mod keys;
 mod platform;
 mod prefs;
 mod styler;
+mod substitutions;
 mod theme;
 mod view;
 
@@ -65,6 +68,7 @@ fn init() -> App {
 }
 
 fn main() {
+    substitutions::load_system_replacements();
     rune::run(AppSpec::<App> {
         fonts: theme::FONTS,
         families: (theme::FONT_FAMILY, theme::FONT_FAMILY),

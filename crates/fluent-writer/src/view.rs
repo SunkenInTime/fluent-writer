@@ -37,7 +37,8 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .fill(p.canvas)
         .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
         .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
-        .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
+        .child(draft(s, &p).absolute(f.editor_x(), s.draft_top()).size(w, (h - s.draft_top()).max(0.0)))
+        .child(crate::find::view(s, &p, &f))
         .child(top_bar)
         .child(footer(s, &p, chrome, fade))
 }
@@ -59,6 +60,7 @@ fn draft(s: &App, p: &Palette) -> El {
         .spans(styled.spans)
         .paragraph_blocks(styled.blocks)
         .input_strikes(styled.strikes)
+        .text_highlights(crate::find::highlights(s, p))
         .spellcheck(s.prefs.spell_check())
         .w_full()
         .min_h(vh)

@@ -17,6 +17,9 @@ struct Stored {
     appearance: Option<String>,
     show_counts: Option<bool>,
     spell_check: Option<bool>,
+    smart_quotes: Option<bool>,
+    smart_dashes: Option<bool>,
+    text_replacement: Option<bool>,
     show_sidebar: Option<bool>,
     sidebar_mode: Option<String>,
     folder_local: Option<String>,
@@ -111,6 +114,32 @@ impl Prefs {
     }
     pub fn set_spell_check(&mut self, on: bool) {
         self.stored.spell_check = Some(on);
+        self.save();
+    }
+
+    /// Edit › Substitutions. The Swift app set these at each launch: quotes and dashes off,
+    /// text replacement on. Here they are those defaults until changed, and then kept.
+    pub fn smart_quotes(&self) -> bool {
+        self.stored.smart_quotes.unwrap_or(false)
+    }
+    pub fn set_smart_quotes(&mut self, on: bool) {
+        self.stored.smart_quotes = Some(on);
+        self.save();
+    }
+
+    pub fn smart_dashes(&self) -> bool {
+        self.stored.smart_dashes.unwrap_or(false)
+    }
+    pub fn set_smart_dashes(&mut self, on: bool) {
+        self.stored.smart_dashes = Some(on);
+        self.save();
+    }
+
+    pub fn text_replacement(&self) -> bool {
+        self.stored.text_replacement.unwrap_or(true)
+    }
+    pub fn set_text_replacement(&mut self, on: bool) {
+        self.stored.text_replacement = Some(on);
         self.save();
     }
 
