@@ -671,3 +671,87 @@ fn the_variant_comes_from_the_bundle_or_the_build_folder() {
     assert_eq!(crate::bundle_id(AppVariant::Dev), "com.sunkenintime.fluentwriter.dev");
     assert_eq!(AppVariant::Dev.app_name(), "Fluent Writer Dev");
 }
+
+/// Reduce Motion: the chrome fades at once and the peek slides out at once.
+/// `EditorController.swift:683`, `ChromeControls.swift:220-240`
+#[test]
+fn reduce_motion_makes_the_chrome_and_the_peek_instant() {
+    let (mut rt, _dir) = harness("Hello");
+    rt.set_system_reduced_motion(true);
+    settle(&mut rt, 0.1);
+    type_text(&mut rt, "x");
+    rt.frame(1.0 / 60.0);
+    rt.frame(1.0 / 60.0);
+    let title = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("title")).unwrap();
+    assert!(title.opacity < 0.5, "faded within two frames, not 0.6 s: {}", title.opacity);
+    rt.pointer_move(400.0, 300.0);
+    settle(&mut rt, 0.1);
+    rt.pointer_move(2.0, 300.0);
+    settle(&mut rt, 0.3);
+    assert!(rt.state.sidebar_peeking);
+    rt.update(|s, tx| s.end_peek(tx));
+    rt.frame(1.0 / 60.0);
+    rt.frame(1.0 / 60.0);
+    assert!(rt.find("sidebar").is_none(), "gone at once");
+}
+
+/// `AssistController.swift:182-251`, `:452-466`, `:550`, `:601`, `:849`
+#[test]
+fn the_assist_panel_and_its_cards_name_themselves() {
+    let (mut rt, _dir) = harness("One two three.\nFour five.");
+    rt.update(|s, tx| s.assist_show(None, Some(AssistTab::Ask), tx));
+    settle(&mut rt, 0.2);
+    let panel = node(&rt, "assist-panel");
+    assert_eq!((str_of(&panel, "role"), str_of(&panel, "name")), (Some("group"), Some("Assist")));
+    assert_eq!(str_of(&node(&rt, "assist-close"), "name"), Some("Close assist"));
+    assert_eq!(str_of(&node(&rt, crate::assist::INSTRUCTION), "name"), Some("Instruction"));
+    assert_eq!(str_of(&node(&rt, "assist-tabs"), "name"), Some("Assist section"));
+    assert_eq!(str_of(&node(&rt, "assist-scope"), "name"), Some("Will send the full draft, 5 words, to Codex"));
+    rt.update(|s, _| s.edit.set_selection(0, 7));
+    rt.update(|s, _| s.assist_refresh_scope());
+    settle(&mut rt, 0.1);
+    assert_eq!(str_of(&node(&rt, "assist-scope"), "name"), Some("Will send the draft, 5 words, focused on 2 selected words, to Codex"));
+    let tree = rt.accessibility_tree();
+    let names: Vec<&str> = tree.nodes.iter().filter_map(|(_, n)| n.label()).collect();
+    for want in ["Provider", "Critique with the selected provider", "Stronger opening with the selected provider", "Send instruction"] {
+        assert!(names.contains(&want), "{want} in {names:?}");
+    }
+    // Cards.
+    let mut id = String::new();
+    rt.update(|s, _| id = s.add_comment(8..13, "Line\nbreak").unwrap());
+    rt.update(|s, tx| s.assist_show(None, Some(AssistTab::Comments), tx));
+    settle(&mut rt, 0.2);
+    let card = node(&rt, &format!("comment-card-{id}"));
+    assert_eq!((str_of(&card, "role"), str_of(&card, "name")), (Some("button"), Some("Comment on “three”: Line\nbreak")));
+    assert_eq!(str_of(&node(&rt, &format!("comment-resolve-{id}")), "name"), Some("Resolve"));
+    assert_eq!(str_of(&node(&rt, &format!("comment-edit-{id}")), "name"), Some("Edit comment"));
+    assert_eq!(str_of(&node(&rt, &format!("comment-delete-{id}")), "name"), Some("Delete comment"));
+    let v = DraftVersion::new(VersionKind::Proposal, "Tighter", "Claude", "One two.");
+    let vid = v.id.clone();
+    rt.update(|s, _| s.add_version(v));
+    rt.update(|s, tx| s.assist_show(None, Some(AssistTab::Versions), tx));
+    settle(&mut rt, 0.2);
+    let card = node(&rt, &format!("version-card-{vid}"));
+    assert_eq!((str_of(&card, "role"), str_of(&card, "name")), (Some("button"), Some("Tighter, Claude, just now")));
+    assert_eq!(str_of(&node(&rt, &format!("version-delete-{vid}")), "name"), Some("Delete version"));
+}
+
+/// A preview opens scrolled to its first change, far down a long draft.
+/// `VersionPreview.swift:180-181`, `:322-328`
+#[test]
+fn a_preview_opens_at_its_first_change_on_a_long_draft() {
+    let body = "Line of the draft that stays the same.\n\n".repeat(80);
+    let (mut rt, _dir) = harness(&body);
+    let at = body.len() - 40 * 6;
+    let changed = format!("{}Changed {}", &body[..at], &body[at..]);
+    let v = DraftVersion::new(VersionKind::Proposal, "Late", "Codex", changed);
+    let id = v.id.clone();
+    rt.update(|s, _| s.add_version(v));
+    rt.update(|s, tx| s.preview_version(&id, tx));
+    settle(&mut rt, 1.0);
+    let caret = rt.state.preview.rendered.first_change.unwrap();
+    assert!(caret > body.len() / 2);
+    let field = rt.elements().into_iter().find(|e| e.key.as_deref() == Some(crate::version_preview::PREVIEW)).unwrap();
+    assert!(field.rect[1] < -1000.0, "scrolled far down: the field's top is at {}", field.rect[1]);
+    assert!(rt.state.preview.edit.focused, "the diff has the keyboard");
+}

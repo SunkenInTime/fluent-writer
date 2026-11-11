@@ -626,7 +626,8 @@ fn shadow_black(alpha: f32) -> Color {
 }
 
 /// The panel, when pinned or peeking.
-pub fn view(s: &App, p: &Palette, f: &Frame) -> Option<El> {
+/// With `reduce_motion` the peek neither slides in nor out. `ChromeControls.swift:220`, `:240`
+pub fn view(s: &App, p: &Palette, f: &Frame, reduce_motion: bool) -> Option<El> {
     let sb = &s.sidebar;
     let peeking = s.sidebar_peeking;
     if !peeking && !s.sidebar_visible {
@@ -701,6 +702,10 @@ pub fn view(s: &App, p: &Palette, f: &Frame) -> Option<El> {
         } else {
             (-SIDEBAR_WIDTH, Anim::from(Curve::tween(PEEK_OUT, Easing::EASE_IN)))
         };
+        if reduce_motion && matches!(sb.peek, Peek::Leaving(_)) {
+            return None;
+        }
+        let anim = if reduce_motion { Anim::INSTANT } else { anim };
         outer = outer.offset(offset, 0.0).offset_motion(anim);
     }
     Some(outer)

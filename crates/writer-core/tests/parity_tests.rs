@@ -299,3 +299,37 @@ fn a_snapshot_matching_the_file_is_deleted_on_open_and_a_different_one_is_loaded
     assert!(recovered.recovered_at().is_some());
     assert_eq!((recovered.body.as_str(), recovered.selection.clone()), ("Newer words", 5..5));
 }
+
+// MARK: Notes on disk
+
+/// `WriterCore/DocumentNotes.swift:168-169`, `:224-284`
+#[test]
+fn notes_keep_200_exchanges_write_iso_dates_with_milliseconds_and_go_when_empty() {
+    use writer_core::{AssistExchange, DocumentNotes, NotesStore};
+    let dir = tempfile::tempdir().unwrap();
+    let store = NotesStore::new(dir.path());
+    let mut notes = DocumentNotes::new("/x/a.md");
+    for i in 0..205 {
+        notes.add_exchange(AssistExchange {
+            date: std::time::SystemTime::now(),
+            provider: "Codex".into(),
+            action: "ask".into(),
+            instruction: format!("{i}"),
+            feedback: String::new(),
+            version_id: None,
+            comment_ids: Vec::new(),
+        });
+    }
+    assert_eq!(notes.transcript.len(), 200);
+    assert_eq!(notes.transcript[0].instruction, "5", "the oldest go");
+    store.save(&notes, "text").unwrap();
+    let file = store.path_for("/x/a.md");
+    let name = file.file_name().unwrap().to_string_lossy().into_owned();
+    assert_eq!(name.len(), 24 + ".json".len(), "12 bytes of SHA-256 in hex");
+    let json: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    let date = json["transcript"][0]["date"].as_str().unwrap();
+    assert!(date.len() == 24 && date.ends_with('Z') && date.as_bytes()[19] == b'.', "ISO 8601 with milliseconds: {date}");
+    notes.transcript.clear();
+    store.save(&notes, "text").unwrap();
+    assert!(!file.exists(), "empty notes leave no file");
+}

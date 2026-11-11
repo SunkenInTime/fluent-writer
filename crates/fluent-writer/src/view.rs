@@ -27,6 +27,7 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     let chrome = crate::chrome::layout(&f, insets);
     let folded = bar.folded.is_some();
     let scale = cx.env().scale;
+    let reduce_motion = cx.is_reduced_motion();
 
     let mut top_bar = el().key("top-bar").absolute(f.editor_x(), 0.0).size(w, TOP_BAR_HEIGHT).fill(p.canvas).window_drag();
     if let Some(r) = chrome.title {
@@ -51,7 +52,7 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .child(crate::find::view(s, &p, &f))
         .child(top_bar)
         .child(crate::footer::view(s, &p, opacity, fade))
-        .children(crate::sidebar::view(s, &p, &f))
+        .children(crate::sidebar::view(s, &p, &f, reduce_motion))
         .child(crate::assist_view::view(s, &p, &f))
         .children(menu_titles)
         .children(crate::chrome::view(s, &p, &chrome, opacity, fade))
