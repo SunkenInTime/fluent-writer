@@ -52,7 +52,7 @@ fn draft(s: &App, p: &Palette) -> El {
     if let Some(focus) = s.focus_range() {
         styled.spans.extend(styler::dimming(s.edit.text.len(), &focus, p));
     }
-    styled.spans.extend(s.notes.highlights(s.edit.text.len(), p));
+    styled.spans.extend(s.draft_highlights(p));
     let field = text_input(&s.edit, draft_font(m.font_size))
         .key(DRAFT)
         .label("Draft")

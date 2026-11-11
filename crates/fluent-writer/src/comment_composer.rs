@@ -92,6 +92,19 @@ fn label_colors(p: &Palette) -> (Color, Color) {
 }
 
 impl App {
+    /// What the draft draws behind its text: comment highlights, and while the composer has the
+    /// keyboard, the draft's selection in AppKit's unfocused selection grey (the editor's window
+    /// isn't key while its popover is).
+    pub fn draft_highlights(&self, p: &Palette) -> Vec<rune::Span> {
+        let mut spans = self.notes.highlights(self.edit.text.len(), p);
+        let (a, b) = self.edit.range();
+        if self.composer.open.is_some() && a != b {
+            let grey = if p.dark { rgba(70, 70, 70, 1.0) } else { rgba(220, 220, 220, 1.0) };
+            spans.push(rune::Span::new(a.min(b), a.max(b)).bg(grey, 0.0));
+        }
+        spans
+    }
+
     /// Selects `range`, scrolls it into view and opens the composer pointing at its first
     /// character. `CommentComposer.swift:138-165`
     pub fn composer_present(&mut self, range: Range<usize>, quote: String, initial: String, target: Target, tx: &mut Tx) {
@@ -240,7 +253,8 @@ pub fn view(s: &App, p: &Palette) -> El {
         .modal_tx(true, |s: &mut App, tx| s.composer_cancel(tx))
         .child(text(quote_line(&open.quote)).key("composer-quote").font(quote_font).color(secondary).truncate().absolute(14.0, 10.0).size(WIDTH - 28.0, 16.0));
     if s.composer.shows_placeholder() {
-        card = card.child(text("What should change here?").font(ui_font(13.0, false)).color(secondary).absolute(16.0, 36.0).size(WIDTH - 32.0, 18.0));
+        // The label's frame is at x 16; its cell draws the text 2 pt in.
+        card = card.child(text("What should change here?").font(ui_font(13.0, false)).color(secondary).absolute(18.0, 36.0).size(WIDTH - 34.0, 18.0));
     }
     card = card
         .child(col().key("composer-scroll").absolute(12.0, 32.0).size(WIDTH - 24.0, 84.0).scroll(ScrollSpec { stick_bottom: false }).child(field))
