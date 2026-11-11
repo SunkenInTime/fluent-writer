@@ -40,10 +40,11 @@ when it is closed and checked.
 - Typing in a 10,000-word draft sometimes stalls for many seconds: the first runs took 30 s
   to catch up after 300 characters at 12 a second, later runs 1 to 2 s. No characters are
   lost. Not yet explained; the Windows spell checker running over the whole draft on each
-  edit is the first thing to rule out (Linux has none, so the timing test there can't see it).
-- A context menu opened from the keyboard (Menu key, Shift+F10) appears at the window's
-  lower-left corner, not at the caret. The cause is in Rune (`context_menu_key` anchors at
-  the focused element's corner).
+  edit was the likely cause: Rune checked the whole text on every edit. The fork now checks a
+  paragraph at a time; not yet re-measured on Windows.
+- A context menu opened from the keyboard (Menu key, Shift+F10) appeared at the window's
+  lower-left corner. Fixed in the fork (it opens under the caret); not yet re-checked on
+  Windows.
 - Ctrl+Alt+M (Add Comment) did not open the composer with real key events, while
   Ctrl+Alt+O worked. Not yet explained: Ctrl+Alt is AltGr on Windows, or another program
   may hold the chord.
