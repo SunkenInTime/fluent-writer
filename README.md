@@ -12,7 +12,7 @@ A quiet macOS writing app built around focus: one column of prose, sentence and 
 
 ![The writing surface in dark mode](docs/screenshots/editor-dark.png)
 
-Assist suggests an edit as a word diff. Your draft only changes if you press Accept.
+Assist's replies arrive as versions, shown as a word diff against your draft. Your draft only changes when you choose to use one.
 
 ![Assist panel showing feedback and a proposed edit](docs/screenshots/assist-diff.png)
 

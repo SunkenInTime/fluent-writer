@@ -18,7 +18,7 @@ public enum MarkdownImages {
     public static func blocks(in text: NSString, lines: [MarkdownLine]) -> [MarkdownImage] {
         var out: [MarkdownImage] = []
         for line in lines where line.kind == .paragraph {
-            guard line.range.length >= 5 else { continue }
+            guard line.range.length >= 5, NSMaxRange(line.range) <= text.length else { continue }
             let s = text.substring(with: line.range)
             guard s.trimmingCharacters(in: .whitespaces).hasPrefix("![") else { continue }
             let ns = s as NSString

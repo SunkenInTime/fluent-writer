@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import ImageIO
 import WriterCore
 
@@ -51,7 +52,7 @@ final class ImageBlockView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        if event.clickCount >= 2, let url { NSWorkspace.shared.open(url); return }
+        if event.clickCount >= 2, let url = openableURL { NSWorkspace.shared.open(url); return }
         guard let editor else { return }
         editor.window?.makeFirstResponder(editor.textView)
         editor.textView.setSelectedRange(NSRange(location: NSMaxRange(lineRange), length: 0))
@@ -60,9 +61,11 @@ final class ImageBlockView: NSView {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let url else { return nil }
         let menu = NSMenu()
-        let open = NSMenuItem(title: "Open Image", action: #selector(openImage), keyEquivalent: "")
-        open.target = self
-        menu.addItem(open)
+        if openableURL != nil {
+            let open = NSMenuItem(title: "Open Image", action: #selector(openImage), keyEquivalent: "")
+            open.target = self
+            menu.addItem(open)
+        }
         if url.isFileURL {
             let reveal = NSMenuItem(title: "Show in Finder", action: #selector(revealImage), keyEquivalent: "")
             reveal.target = self
@@ -76,7 +79,17 @@ final class ImageBlockView: NSView {
         return menu
     }
 
-    @objc private func openImage() { if let url { NSWorkspace.shared.open(url) } }
+    /// Only web links and existing image files get opened, so a draft can't point Launch Services at an app or script.
+    private var openableURL: URL? {
+        guard let url else { return nil }
+        if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" { return url }
+        guard url.isFileURL,
+              let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType,
+              type.conforms(to: .image) else { return nil }
+        return url
+    }
+
+    @objc private func openImage() { if let url = openableURL { NSWorkspace.shared.open(url) } }
     @objc private func revealImage() { if let url { NSWorkspace.shared.activateFileViewerSelecting([url]) } }
     @objc private func copyImage() {
         let pb = NSPasteboard.general

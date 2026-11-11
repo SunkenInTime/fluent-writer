@@ -7,7 +7,7 @@ final class ComposerTextView: NSTextView {
     var onCancel: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 36 || event.keyCode == 76 {
+        if (event.keyCode == 36 || event.keyCode == 76), !hasMarkedText() {
             if event.modifierFlags.intersection([.shift, .option]).isEmpty { onSubmit?(); return }
             insertNewlineIgnoringFieldEditor(nil)
             return
@@ -22,6 +22,7 @@ final class CommentComposer: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     private let textView = ComposerTextView()
     private var onSave: ((String) -> Void)?
+    private var textObserver: NSObjectProtocol?
 
     func present(quote: String, initial: String = "", relativeTo rect: NSRect, of view: NSView, onSave: @escaping (String) -> Void) {
         self.onSave = onSave
@@ -65,7 +66,8 @@ final class CommentComposer: NSObject, NSPopoverDelegate {
         placeholder.frame = NSRect(x: 16, y: 96, width: width - 32, height: 18)
         placeholder.isHidden = !initial.isEmpty
         root.addSubview(placeholder)
-        NotificationCenter.default.addObserver(forName: NSText.didChangeNotification, object: textView, queue: .main) { [weak placeholder, weak textView] _ in
+        if let textObserver { NotificationCenter.default.removeObserver(textObserver) }
+        textObserver = NotificationCenter.default.addObserver(forName: NSText.didChangeNotification, object: textView, queue: .main) { [weak placeholder, weak textView] _ in
             placeholder?.isHidden = !(textView?.string.isEmpty ?? true)
         }
 
@@ -106,7 +108,8 @@ final class CommentComposer: NSObject, NSPopoverDelegate {
 
     func popoverDidClose(_ notification: Notification) {
         onSave = nil
-        NotificationCenter.default.removeObserver(self)
+        if let textObserver { NotificationCenter.default.removeObserver(textObserver) }
+        textObserver = nil
     }
 }
 

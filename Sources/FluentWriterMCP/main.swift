@@ -45,11 +45,21 @@ func lineNumber(of location: Int, in text: NSString) -> Int {
     return line
 }
 
+/// Whole-number argument, clamped, so NaN or huge values can't trap the server.
+func intArg(_ v: Double?, in range: ClosedRange<Int>) -> Int? {
+    guard let v, v.isFinite else { return nil }
+    return Int(min(max(v.rounded(), Double(range.lowerBound)), Double(range.upperBound)))
+}
+
 func iso(_ d: Date) -> JSONValue { .string(ISO8601DateFormatter().string(from: d)) }
 
 func resolvePath(_ args: JSONValue) throws -> String {
     if let p = args["path"]?.stringValue, !p.isEmpty {
-        return URL(fileURLWithPath: (p as NSString).expandingTildeInPath).standardizedFileURL.path
+        let url = URL(fileURLWithPath: (p as NSString).expandingTildeInPath).standardizedFileURL
+        guard DraftLibrary.fileExtensions.contains(url.pathExtension.lowercased()) else {
+            throw ToolError(message: "`path` must be a draft (.md, .markdown, .txt or .text).")
+        }
+        return url.path
     }
     if let live = store.liveState(), let p = live.path { return p }
     if store.liveState() != nil {
@@ -277,7 +287,7 @@ func call(_ name: String, _ args: JSONValue) throws -> String {
         var c = InboxCommand(kind: .addComment, path: try resolvePath(args), agent: agentName)
         c.quote = args["quote"]?.stringValue
         c.body = args["comment"]?.stringValue
-        c.occurrence = args["occurrence"]?.numberValue.map { Int($0) }
+        c.occurrence = intArg(args["occurrence"]?.numberValue, in: 0...1_000_000)
         return try mutate(c)
 
     case "reply_to_comment":
@@ -323,12 +333,12 @@ func call(_ name: String, _ args: JSONValue) throws -> String {
 
     case "get_assist_history":
         let notes = store.load(path: try resolvePath(args))
-        let limit = args["limit"]?.numberValue.map { Int($0) } ?? 20
+        let limit = intArg(args["limit"]?.numberValue, in: 1...500) ?? 20
         if notes.transcript.isEmpty { return "No Assist requests for this draft yet." }
         return pretty(.array(notes.transcript.suffix(max(1, limit)).map(exchangeJSON)))
 
     case "list_documents":
-        let limit = args["limit"]?.numberValue.map { Int($0) } ?? 20
+        let limit = intArg(args["limit"]?.numberValue, in: 1...500) ?? 20
         let recent = DraftLibrary.recentPaths(supportDirectory: supportDirectory).prefix(max(1, limit))
         if recent.isEmpty { return "No recent drafts." }
         return pretty(.array(recent.map { r in
