@@ -62,6 +62,8 @@ pub struct MenuBar {
     pub by_keys: bool,
     /// Where the context menu opened, in window points.
     pub context_at: (f32, f32),
+    /// The byte of the draft the context menu was opened on.
+    pub context_offset: Option<usize>,
     /// The titles are folded into one button (set by the view's layout, read by the keys).
     pub folded: bool,
 }
@@ -136,7 +138,9 @@ impl App {
         let sel = self.has_selection();
         let item = |id: &'static str, title: &str, enabled: bool, checked: bool| Row { what: What::Pick(id), title: title.into(), shortcut: String::new(), enabled, checked };
         let mut rows = vec![item("comment", if sel { "Comment on Selection…" } else { "Comment on This Line…" }, true, false)];
-        // The comments port adds "Show Comment" here when the click is on a commented passage.
+        if self.menus.context_offset.and_then(|o| self.notes.comment_at(o)).is_some() {
+            rows.push(item("show-comment", "Show Comment", true, false));
+        }
         rows.push(Row::separator());
         rows.push(item("cut", "Cut", sel, false));
         rows.push(item("copy", "Copy", sel, false));
@@ -175,6 +179,7 @@ impl App {
     pub fn context_pick(&mut self, id: &str, tx: &mut Tx) {
         match id {
             "comment" => self.run(Command::AddComment, tx),
+            "show-comment" => self.run(Command::ShowComments, tx),
             "cut" => self.run(Command::Cut, tx),
             "copy" => self.run(Command::Copy, tx),
             "paste" => self.run(Command::Paste, tx),

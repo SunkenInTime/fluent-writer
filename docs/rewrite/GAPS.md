@@ -6,8 +6,7 @@ when it is closed and checked.
 ## Images
 - Format › Image… picks one file at a time. The Swift panel allowed several. Rune's file
   dialog returns a single path; the fork needs a multi-select open.
-- An image dropped on the draft is inserted at the selection, not at the drop point. Rune
-  gives the drop's point but has no way to turn a point in a text field into a text offset.
+
 - Copy Image works for image files only, not for images loaded from the web.
 - Previews are decoded at 2× regardless of the screen's scale.
 - Pasting or dropping an image while a version is being previewed should beep and do nothing;

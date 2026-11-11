@@ -531,3 +531,24 @@ fn substitutions_follow_their_settings() {
     command(&mut rt, 'z', false, false);
     assert!(rt.state.edit.text.ends_with("a--"), "undo takes back the dash: {:?}", rt.state.edit.text);
 }
+
+#[test]
+fn right_clicking_a_commented_passage_offers_show_comment() {
+    let (mut rt, _dir) = harness("One two three.");
+    rt.update(|s, _| {
+        s.add_comment(4..7, "why two?");
+    });
+    settle(&mut rt, 0.1);
+    assert!(!rt.state.context_rows().iter().any(|r| r.title == "Show Comment"));
+    // The point of "two" in the draft, read back from where the field drew it.
+    let ([x, y, _, _], _) = rt.presented(crate::app::DRAFT).unwrap();
+    let c = rt.state.column();
+    let (px, py) = (x + c.inset_x + rt.state.metrics.hang_width() + 40.0, y + c.inset_y + 10.0);
+    rt.secondary_down(px, py);
+    rt.secondary_up(px, py);
+    settle(&mut rt, 0.1);
+    let at = rt.state.menus.context_offset.expect("the click landed in the text");
+    assert!((3..=8).contains(&at), "offset {at}");
+    assert!(rt.state.context_rows().iter().any(|r| r.title == "Show Comment"));
+    assert!(rt.state.notes.active_comment_id().is_some());
+}

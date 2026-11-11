@@ -101,10 +101,19 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
             png.is_some_and(|png| s.insert_images(&[], Some(&png), None, tx))
         })
         .on_drop_files(|s: &mut App, files, tx| {
-            s.insert_images(files, None, None, tx);
+            // The images go in where they were dropped.
+            let at = tx.drop_point().and_then(|p| p.text_offset);
+            s.insert_images(files, None, at, tx);
         })
         .accepts_extensions(&writer_core::markdown_images::IMAGE_EXTENSIONS)
-        .on_secondary_press(|s: &mut App, press, tx| s.open_context_menu(press, tx))
+        .on_secondary_press_local(|s: &mut App, at, tx| {
+            s.menus.context_offset = at.text_offset;
+            // Right-clicking a commented passage makes that comment the active one.
+            if let Some(id) = at.text_offset.and_then(|o| s.notes.comment_at(o)).map(|c| c.id.clone()) {
+                s.notes.set_active_comment(Some(id));
+            }
+            s.open_context_menu(at.window(), tx)
+        })
         .on_submit(|s: &mut App, tx| {
             s.edit.insert("\n");
             s.text_did_change(tx);
