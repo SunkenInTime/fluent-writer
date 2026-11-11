@@ -1092,12 +1092,7 @@ pub(crate) mod tests {
         let (mut rt, dir) = app_with(&[("One.md", "One"), ("Two.md", "Two body"), ("Three.md", "Three body")]);
         run(&mut rt, Command::ToggleSidebar);
         let drafts = dir.path().join("drafts");
-        let set_readonly = |on: bool| {
-            let mut perms = std::fs::metadata(&drafts).unwrap().permissions();
-            #[allow(clippy::permissions_set_readonly_false)]
-            perms.set_readonly(on);
-            std::fs::set_permissions(&drafts, perms).unwrap();
-        };
+        let set_readonly = |on: bool| crate::tests::set_folder_locked(&drafts, on);
         set_readonly(true);
         crate::tests::type_text(&mut rt, " more");
         settle(&mut rt, 1.0);

@@ -35,9 +35,7 @@ fn run(rt: &mut Runtime<App>, c: Command) {
 fn failing(body: &str) -> (Runtime<App>, tempfile::TempDir) {
     let (mut rt, dir) = harness("");
     let drafts = dir.path().join("drafts");
-    let mut perms = std::fs::metadata(&drafts).unwrap().permissions();
-    perms.set_readonly(true);
-    std::fs::set_permissions(&drafts, perms).unwrap();
+    crate::tests::set_folder_locked(&drafts, true);
     type_text(&mut rt, body);
     settle(&mut rt, 1.0);
     assert!(matches!(rt.state.save_state, SaveState::Failed(_)), "the save should fail");
@@ -46,10 +44,7 @@ fn failing(body: &str) -> (Runtime<App>, tempfile::TempDir) {
 
 fn writable(dir: &tempfile::TempDir) {
     let drafts = dir.path().join("drafts");
-    let mut perms = std::fs::metadata(&drafts).unwrap().permissions();
-    #[allow(clippy::permissions_set_readonly_false)]
-    perms.set_readonly(false);
-    std::fs::set_permissions(&drafts, perms).unwrap();
+    crate::tests::set_folder_locked(&drafts, false);
 }
 
 // MARK: Layout
@@ -245,9 +240,7 @@ fn a_rename_that_fails_says_why() {
     type_text(&mut rt, "Stuck");
     settle(&mut rt, 1.0);
     let drafts = dir.path().join("drafts");
-    let mut perms = std::fs::metadata(&drafts).unwrap().permissions();
-    perms.set_readonly(true);
-    std::fs::set_permissions(&drafts, perms).unwrap();
+    crate::tests::set_folder_locked(&drafts, true);
     rt.update(|s, tx| s.begin_title_edit(true, tx));
     type_text(&mut rt, "Moved");
     press(&mut rt, Key::Enter, Mods::default());
@@ -289,7 +282,7 @@ fn the_focus_label_shows_without_counts_and_tooltips_follow_the_swift() {
 
     type_text(&mut rt, "Words");
     settle(&mut rt, 1.0);
-    let path = dir.path().join("drafts/Words.md");
+    let path = dir.path().join("drafts").join("Words.md");
     assert_eq!(info(&rt, "status").help.as_deref(), Some(path.to_str().unwrap()), "Saved shows the path");
     type_text(&mut rt, "!");
     assert_eq!(rt.state.status().0, "Edited");

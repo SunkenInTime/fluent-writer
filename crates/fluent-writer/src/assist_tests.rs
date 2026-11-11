@@ -514,8 +514,16 @@ fn the_provider_menu_switches_providers() {
     let (mut rt, _dir) = harness(DRAFT);
     chord(&mut rt, 'j', false, false);
     click(&mut rt, crate::assist_view::PROVIDER_KEY);
-    assert!(rt.state.assist.provider_menu_open);
-    click(&mut rt, "assist-provider-claude");
+    if rune::popup_menu_supported() {
+        // macOS and Windows: the system's pop-up menu.
+        assert!(rt.popup_menu().is_some_and(|m| m.find("claude").is_some()));
+        rt.resolve_popup(Some("claude")).unwrap();
+        settle(&mut rt, 0.1);
+    } else {
+        // Linux: the menu the app draws itself.
+        assert!(rt.state.assist.provider_menu_open);
+        click(&mut rt, "assist-provider-claude");
+    }
     assert_eq!(rt.state.assist.provider, AgentProvider::Claude);
     assert!(!rt.state.assist.provider_menu_open);
     assert_eq!(rt.state.assist.scope, "Full draft · 11 words → Claude");

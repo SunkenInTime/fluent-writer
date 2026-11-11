@@ -497,7 +497,7 @@ fn inbox_commands_for_other_drafts_go_to_their_notes() {
     assert_eq!(saved.comments[0].author, "Codex CLI");
     assert!(rt.state.notes.open_comments().is_empty());
 
-    let missing = dir.path().join("drafts/Missing.md");
+    let missing = dir.path().join("drafts").join("Missing.md");
     let mut add = InboxCommand::new(InboxCommandKind::AddComment, missing.to_str().unwrap(), "Codex CLI");
     add.quote = Some("x".into());
     add.body = Some("y".into());

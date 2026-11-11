@@ -552,3 +552,29 @@ fn right_clicking_a_commented_passage_offers_show_comment() {
     assert!(rt.state.context_rows().iter().any(|r| r.title == "Show Comment"));
     assert!(rt.state.notes.active_comment_id().is_some());
 }
+
+/// Makes `folder` refuse new files, renames and deletions (or allows them again), so a save or
+/// rename into it fails. Unix: the folder's write bit. Windows: a deny entry on the folder,
+/// because its read-only attribute doesn't stop files being created inside it.
+pub fn set_folder_locked(folder: &std::path::Path, locked: bool) {
+    #[cfg(not(windows))]
+    {
+        let mut perms = std::fs::metadata(folder).unwrap().permissions();
+        #[allow(clippy::permissions_set_readonly_false)]
+        perms.set_readonly(locked);
+        std::fs::set_permissions(folder, perms).unwrap();
+    }
+    #[cfg(windows)]
+    {
+        let user = std::env::var("USERNAME").unwrap();
+        let mut icacls = std::process::Command::new("icacls");
+        icacls.arg(folder);
+        if locked {
+            // Deny adding files and folders, deleting children and writing data, here and below.
+            icacls.args(["/deny", &format!("{user}:(OI)(CI)(WD,AD,DC,D)")]);
+        } else {
+            icacls.args(["/remove:d", &user]);
+        }
+        assert!(icacls.output().unwrap().status.success(), "icacls changed the folder's access");
+    }
+}
