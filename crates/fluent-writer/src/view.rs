@@ -76,7 +76,8 @@ fn draft(s: &App, p: &Palette) -> El {
             s.text_did_change(tx);
         })
         .on_layout(|s: &mut App, r| s.field_rect = r);
-    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(field)
+    // The draft's menu offers Check Spelling While Typing, as the text view's Spelling submenu did.
+    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).on_spellcheck(s.prefs.spell_check(), |s: &mut App, on, _| s.prefs.set_spell_check(on)).child(field)
 }
 
 /// Status on the left, counts on the right, focus mode centred only when there's room for it.

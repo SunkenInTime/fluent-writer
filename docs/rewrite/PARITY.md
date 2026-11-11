@@ -157,20 +157,20 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] Vertical scroller is an overlay scroller that auto-hides; no border; no scroll view background. `EditorController.swift:191-195`
 - [ ] Changing text size keeps the selection, re-centres the caret in focus modes (otherwise scrolls the selection into view), and flashes "Text size N pt". `Commands.swift:129-138`
 - [ ] Layout is contiguous (whole document laid out), font leading not used. `EditorController.swift:102-103`
-- [ ] Text input: IME/marked text, dead keys, emoji picker, dictation. **(AppKit built-in)**
-- [ ] Standard text navigation and selection keys (arrows, ⌥/⌘ arrows, ⇧ extend, Home/End, Page Up/Down, Emacs ⌃A/⌃E/⌃K etc.), double-click word, triple-click paragraph, drag-select, drag-to-move selected text. **(AppKit built-in)**
-- [ ] Undo/redo with typing coalescing; undo history cleared when a document loads. **(AppKit built-in for the stack)** `EditorController.swift:160`, `EditorController.swift:328`
-- [ ] Undo menu titles name the action ("Undo Typing", "Undo Bold", …) from the action names the app sets. **(AppKit built-in titles)** `EditorController.swift:767`
-- [ ] Dragging text in and out of the editor, and dropping text from other apps. **(AppKit built-in)**
-- [ ] Continuous spell checking on by default (preference). `EditorController.swift:163`
-- [ ] Automatic spelling correction off at launch. `EditorController.swift:164`
-- [ ] Smart quotes off at launch. `EditorController.swift:165`
-- [ ] Smart dashes off at launch. `EditorController.swift:166`
-- [ ] Text replacement (system text shortcuts) on at launch. **(AppKit built-in: the replacement itself)** `EditorController.swift:167`
+- [ ] Text input: IME/marked text, dead keys, emoji picker, dictation. **(AppKit built-in)** — Rewrite: IME, dead keys and composition are Rune's (`edit/ime.rs`); the emoji picker and dictation are the system's and reach the draft as IME commits on macOS and Windows. Not checked by hand on either.
+- [ ] Standard text navigation and selection keys (arrows, ⌥/⌘ arrows, ⇧ extend, Home/End, Page Up/Down, Emacs ⌃A/⌃E/⌃K etc.), double-click word, triple-click paragraph, drag-select, drag-to-move selected text. **(AppKit built-in)** — Rewrite: arrows, ⇧ extend, ⌥/⌘ arrows (Ctrl off macOS), word/line deletion, Page Up/Down, ⌃B ⌃F ⌃N ⌃P ⌃D ⌃H, double-click word, triple-click paragraph and drag-select are Rune's; ⌃A ⌃E (paragraph), ⌃K/⌃Y kill and yank, ⌃T, ⌃O, ⌃L, ⌥↑/⌥↓ (Ctrl+↑/↓ elsewhere), Home/End scrolling and Escape keeping focus are built in `editing.rs`. Tests: `word_and_line_keys_follow_the_platform`, `paragraph_keys_move_by_paragraph`, `double_and_triple_click_select_a_word_and_a_paragraph_and_drag_selects`, `escape_keeps_the_keyboard_in_the_draft`. Not done: drag-to-move selected text (Rune has no text drag source or drop target in a field); ⌘⌫ deletes to the paragraph's start, not the visual line's; ⌥←/→ word stops follow white space only, where AppKit also stops at punctuation; ⌃V/⌥PageUp caret paging.
+- [x] Undo/redo with typing coalescing; undo history cleared when a document loads. **(AppKit built-in for the stack)** `EditorController.swift:160`, `EditorController.swift:328` — Rewrite: Rune coalesces a typing run until the caret moves; a new draft gets a new `TextEdit`. Tests: `typing_coalesces_until_the_caret_moves`, `loading_a_draft_clears_the_undo_history`.
+- [ ] Undo menu titles name the action ("Undo Typing", "Undo Bold", …) from the action names the app sets. **(AppKit built-in titles)** `EditorController.swift:767` — Rewrite: blocked: Rune's `TextEdit` history keeps no action names, so menus can only say Undo/Redo.
+- [ ] Dragging text in and out of the editor, and dropping text from other apps. **(AppKit built-in)** — Rewrite: blocked: Rune fields have no text drag out, and drops are files only (`on_drop_files`).
+- [x] Continuous spell checking on by default (preference). `EditorController.swift:163` — Rewrite: preference defaults on and drives `El::spellcheck`; the draft's menu also has Rune's Spellcheck toggle. Rune checks on macOS and Windows only; Linux has no checker. Test: `check_spelling_while_typing_is_on_by_default_and_toggles`.
+- [x] Automatic spelling correction off at launch. `EditorController.swift:164` — Rewrite: Rune has no automatic correction, so it is always off.
+- [x] Smart quotes off at launch. `EditorController.swift:165` — Rewrite: `Prefs::smart_quotes` defaults off. The rewrite keeps the setting between launches; the Swift app reset it each launch.
+- [x] Smart dashes off at launch. `EditorController.swift:166` — Rewrite: as Smart Quotes.
+- [ ] Text replacement (system text shortcuts) on at launch. **(AppKit built-in: the replacement itself)** `EditorController.swift:167` — Rewrite: built in `substitutions.rs`: on by default, reads `NSUserDictionaryReplacementItems` through `defaults export -g - | plutil -extract` on a thread at launch, replaces a shortcut when a space or punctuation follows it. Matching is tested with a sample list; the macOS read was not run (no Mac reachable from the build box). Windows and Linux have no system list, so the setting does nothing there.
 - [ ] Automatic link detection off. `EditorController.swift:168`
 - [ ] Smart insert/delete (automatic spaces around pasted words) off. `EditorController.swift:169`
-- [ ] Find bar (not a panel), shown above the text, with incremental search highlighting. **(AppKit built-in)** `EditorController.swift:161-162`, `EditorController.swift:196`
-- [ ] Look Up / dictionary on force-click or ⌃⌘D. **(AppKit built-in)**
+- [x] Find bar (not a panel), shown above the text, with incremental search highlighting. **(AppKit built-in)** `EditorController.swift:161-162`, `EditorController.swift:196` — Rewrite: `find.rs`. Tests: `find_shows_the_bar_searches_as_you_type_and_escape_returns_to_the_match`, `the_find_bar_pushes_the_draft_down_and_its_buttons_work`, `a_far_match_is_scrolled_into_view`.
+- [ ] Look Up / dictionary on force-click or ⌃⌘D. **(AppKit built-in)** — Rewrite: blocked: Rune has no Look Up / dictionary panel API.
 
 ---
 
@@ -388,33 +388,33 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### Edit
 
-- [ ] "Undo" ⌘Z. **(AppKit built-in, with action names)** `MainMenu.swift:55`
-- [ ] "Redo" ⇧⌘Z. **(AppKit built-in)** `MainMenu.swift:56`
+- [x] "Undo" ⌘Z. **(AppKit built-in, with action names)** `MainMenu.swift:55` — Rewrite: through the draft's own history; from a menu, `App::run_menu` sends it to whichever field has focus. Action names: see Undo menu titles above.
+- [x] "Redo" ⇧⌘Z. **(AppKit built-in)** `MainMenu.swift:56`
 - [ ] separator `MainMenu.swift:57`
-- [ ] "Cut" ⌘X. **(AppKit built-in)** `MainMenu.swift:58`
-- [ ] "Copy" ⌘C. **(AppKit built-in)** `MainMenu.swift:59`
-- [ ] "Paste" ⌘V; also enabled when the clipboard holds only an image (see Images). **(AppKit built-in for text)** `MainMenu.swift:60`, `EditorTextView.swift:33-37`
-- [ ] "Delete", no shortcut. **(AppKit built-in)** `MainMenu.swift:61`
-- [ ] "Select All" ⌘A. **(AppKit built-in)** `MainMenu.swift:62`
+- [x] "Cut" ⌘X. **(AppKit built-in)** `MainMenu.swift:58` — Rewrite: Test: `cut_copy_and_paste_go_through_the_clipboard`.
+- [x] "Copy" ⌘C. **(AppKit built-in)** `MainMenu.swift:59`
+- [ ] "Paste" ⌘V; also enabled when the clipboard holds only an image (see Images). **(AppKit built-in for text)** `MainMenu.swift:60`, `EditorTextView.swift:33-37` — Rewrite: text paste works (test `cut_copy_and_paste_go_through_the_clipboard`); the image half belongs to Images.
+- [x] "Delete", no shortcut. **(AppKit built-in)** `MainMenu.swift:61` — Rewrite: deletes the selection only. Test: `menu_edit_items_act_on_the_focused_field`.
+- [x] "Select All" ⌘A. **(AppKit built-in)** `MainMenu.swift:62`
 - [ ] separator `MainMenu.swift:63`
-- [ ] Find › "Find…" ⌘F — shows the find bar. **(AppKit built-in)** `MainMenu.swift:65`
-- [ ] Find › "Find and Replace…" ⌥⌘F — find bar with replace. **(AppKit built-in)** `MainMenu.swift:66`
-- [ ] Find › "Find Next" ⌘G. **(AppKit built-in)** `MainMenu.swift:67`
-- [ ] Find › "Find Previous" ⇧⌘G. **(AppKit built-in)** `MainMenu.swift:68`
-- [ ] Find › "Use Selection for Find" ⌘E. **(AppKit built-in)** `MainMenu.swift:69`
-- [ ] Find › "Jump to Selection" ⌥⌘J — scrolls the selection to the centre. **(AppKit built-in)** `MainMenu.swift:70`
-- [ ] Find bar: Done button, match count, Esc closes, Return/⇧Return next/previous, replace and replace-all, case and contains/starts-with options. **(AppKit built-in)**
-- [ ] Spelling and Grammar › "Show Spelling and Grammar" ⌘: (shift-semicolon) — spelling panel. **(AppKit built-in)** `MainMenu.swift:73`
-- [ ] Spelling and Grammar › "Check Document Now" ⌘; — jumps to the next misspelling. **(AppKit built-in)** `MainMenu.swift:74`
+- [x] Find › "Find…" ⌘F — shows the find bar. **(AppKit built-in)** `MainMenu.swift:65` — Rewrite: keeps the last search (AppKit kept it on the system find pasteboard, which Rune can't reach).
+- [x] Find › "Find and Replace…" ⌥⌘F — find bar with replace. **(AppKit built-in)** `MainMenu.swift:66` — Rewrite: Ctrl+H off macOS.
+- [x] Find › "Find Next" ⌘G. **(AppKit built-in)** `MainMenu.swift:67` — Rewrite: works with the bar hidden. Test: `find_next_and_previous_wrap_and_respect_the_options`.
+- [x] Find › "Find Previous" ⇧⌘G. **(AppKit built-in)** `MainMenu.swift:68`
+- [x] Find › "Use Selection for Find" ⌘E. **(AppKit built-in)** `MainMenu.swift:69` — Rewrite: Test: `use_selection_for_find_then_find_next`.
+- [x] Find › "Jump to Selection" ⌥⌘J — scrolls the selection to the centre. **(AppKit built-in)** `MainMenu.swift:70` — Rewrite: no shortcut (see Oddities). Test: `jump_to_selection_centres_it`.
+- [x] Find bar: Done button, match count, Esc closes, Return/⇧Return next/previous, replace and replace-all, case and contains/starts-with options. **(AppKit built-in)** — Rewrite: count reads "2 of 13", "13 matches" or "Not found"; Replace replaces the selected match and moves to the next, each one undo step; Replace All is one step and reports "N replaced". Tests: `replace_replaces_the_match_and_moves_on_as_one_undo_step`, `replace_all_is_one_undo_step_and_reports_the_count`. Snapshots of the bar in light and dark were checked.
+- [ ] Spelling and Grammar › "Show Spelling and Grammar" ⌘: (shift-semicolon) — spelling panel. **(AppKit built-in)** `MainMenu.swift:73` — Rewrite: blocked: Rune has no spelling panel. Left out of the menu rather than shown disabled.
+- [ ] Spelling and Grammar › "Check Document Now" ⌘; — jumps to the next misspelling. **(AppKit built-in)** `MainMenu.swift:74` — Rewrite: blocked: needs Rune to make `spell::misspelled(text)` public so the app can select the next misspelled word.
 - [ ] separator `MainMenu.swift:75`
-- [ ] Spelling and Grammar › "Check Spelling While Typing", no shortcut, checked per the spell-check preference; toggles and saves it. `MainMenu.swift:76`, `Commands.swift:162-165`, `Commands.swift:178`
-- [ ] Spelling and Grammar › "Check Grammar With Spelling", checked state from the text view; toggles grammar checking (not saved by the app). **(AppKit built-in)** `MainMenu.swift:77`
-- [ ] Spelling and Grammar › "Correct Spelling Automatically", checked state from the text view; off at each launch. **(AppKit built-in)** `MainMenu.swift:78`, `EditorController.swift:164`
-- [ ] Substitutions › "Smart Quotes", checked from the text view; off at each launch. **(AppKit built-in)** `MainMenu.swift:81`, `EditorController.swift:165`
-- [ ] Substitutions › "Smart Dashes", checked from the text view; off at each launch. **(AppKit built-in)** `MainMenu.swift:82`, `EditorController.swift:166`
-- [ ] Substitutions › "Text Replacement", checked from the text view; on at each launch. **(AppKit built-in)** `MainMenu.swift:83`, `EditorController.swift:167`
-- [ ] Red underline under misspelled words and right-click suggestions (Guesses, Ignore Spelling, Learn Spelling). **(AppKit built-in)**
-- [ ] macOS adds "Start Dictation…" and "Emoji & Symbols" (⌃⌘Space) to the Edit menu. **(AppKit built-in)**
+- [x] Spelling and Grammar › "Check Spelling While Typing", no shortcut, checked per the spell-check preference; toggles and saves it. `MainMenu.swift:76`, `Commands.swift:162-165`, `Commands.swift:178`
+- [ ] Spelling and Grammar › "Check Grammar With Spelling", checked state from the text view; toggles grammar checking (not saved by the app). **(AppKit built-in)** `MainMenu.swift:77` — Rewrite: blocked: Rune's checker reports spelling only.
+- [ ] Spelling and Grammar › "Correct Spelling Automatically", checked state from the text view; off at each launch. **(AppKit built-in)** `MainMenu.swift:78`, `EditorController.swift:164` — Rewrite: blocked: needs public `spell::misspelled` and `spell::suggest`; off in the Swift app at each launch, and absent here, so the default behaviour matches.
+- [x] Substitutions › "Smart Quotes", checked from the text view; off at each launch. **(AppKit built-in)** `MainMenu.swift:81`, `EditorController.swift:165` — Rewrite: AppKit's rule: opening after the start, white space or an opening bracket or quote, closing elsewhere. Test: `substitutions_follow_their_settings`.
+- [x] Substitutions › "Smart Dashes", checked from the text view; off at each launch. **(AppKit built-in)** `MainMenu.swift:82`, `EditorController.swift:166` — Rewrite: two hyphens become an em dash once the next character is typed, as its own undo step; three are left alone.
+- [x] Substitutions › "Text Replacement", checked from the text view; on at each launch. **(AppKit built-in)** `MainMenu.swift:83`, `EditorController.swift:167` — Rewrite: macOS only; see Text replacement in section 2.
+- [ ] Red underline under misspelled words and right-click suggestions (Guesses, Ignore Spelling, Learn Spelling). **(AppKit built-in)** — Rewrite: Rune draws the marks and offers guesses and Learn Spelling on macOS and Windows; there is no Ignore Spelling, and none of it exists on Linux. Not seen on a Mac or Windows machine.
+- [ ] macOS adds "Start Dictation…" and "Emoji & Symbols" (⌃⌘Space) to the Edit menu. **(AppKit built-in)** — Rewrite: depends on the native Edit menu, which is not built yet.
 
 ### Format
 
@@ -482,7 +482,7 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 - [ ] First item "Comment on Selection…" when text is selected, else "Comment on This Line…" → Add Comment. `EditorController.swift:774-776`
 - [ ] When the click is on a commented passage: that comment becomes active and a "Show Comment" item opens the Comments tab. `EditorController.swift:777-780`
-- [ ] Then a separator, then the standard text-view menu: spelling suggestions, Look Up, Translate, Search With Google, Cut/Copy/Paste, Share, Spelling and Grammar, Substitutions, Transformations, Speech, Services. **(AppKit built-in)** `EditorController.swift:781-786`
+- [ ] Then a separator, then the standard text-view menu: spelling suggestions, Look Up, Translate, Search With Google, Cut/Copy/Paste, Share, Spelling and Grammar, Substitutions, Transformations, Speech, Services. **(AppKit built-in)** `EditorController.swift:781-786` — Rewrite: Rune's field menu gives spelling guesses, Learn Spelling, Cut, Copy, Paste, (Select All off macOS) and the Spellcheck toggle; no Look Up, Translate, Search, Share, Substitutions, Transformations, Speech or Services. If the comments work adds `on_secondary_press` to the draft, Rune drops its field menu, spelling guesses included.
 
 ---
 
