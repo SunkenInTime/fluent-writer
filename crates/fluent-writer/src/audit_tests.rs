@@ -775,3 +775,23 @@ fn quitting_writes_the_notes_and_removes_the_live_state() {
     let path = dir.path().join("drafts/Saved.md");
     assert_eq!(store.load(path.to_str().unwrap(), "Some words").comments.len(), 1, "the comment was written");
 }
+
+/// Oddity 6, kept: Format commands edit the draft even from the title field or the preview.
+/// `Commands.swift:86-116`
+#[test]
+fn format_commands_edit_the_draft_from_the_title_and_the_preview() {
+    let (mut rt, _dir) = harness("word");
+    rt.update(|s, _| s.edit.set_caret(2));
+    rt.update(|s, tx| s.begin_title_edit(false, tx));
+    settle(&mut rt, 0.1);
+    crate::tests::command(&mut rt, 'b', false, false);
+    assert_eq!(rt.state.edit.text, "**word**");
+    let v = DraftVersion::new(VersionKind::Proposal, "V", "Codex", "other");
+    let id = v.id.clone();
+    rt.update(|s, _| s.add_version(v));
+    rt.update(|s, tx| s.preview_version(&id, tx));
+    settle(&mut rt, 0.1);
+    crate::tests::command(&mut rt, 'i', false, false);
+    assert_eq!(rt.state.edit.text, "***word***");
+    assert!(rt.state.preview.is_active(), "the preview stays");
+}
