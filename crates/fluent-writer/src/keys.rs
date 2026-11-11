@@ -7,6 +7,12 @@ use crate::app::App;
 
 /// Return continues lists, Tab and Shift-Tab indent them. Every key hides the chrome.
 pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if crate::menubar::key(s, ev, tx) {
+        return true;
+    }
+    if matches!(ev.key, Key::Modifier { .. }) {
+        return false;
+    }
     if let Some(command) = crate::commands::command_for(ev, tx) {
         s.run(command, tx);
         return true;
@@ -31,6 +37,9 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
 
 /// Keys that reach the window: shortcuts while nothing has focus, or that a field passed on.
 pub fn window_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if crate::menubar::key(s, ev, tx) {
+        return true;
+    }
     match crate::commands::command_for(ev, tx) {
         Some(command) => {
             s.run(command, tx);

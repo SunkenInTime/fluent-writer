@@ -1,45 +1,61 @@
-//! The window: the top bar, the draft in its scroll view, and the footer.
+//! The window: the top bar, the draft in its scroll view, the footer, and the chrome over them.
 
-use rune::{Align, Cx, El, ScrollSpec, Spring, col, el, text, text_input};
-use writer_core::FocusUnit;
+use rune::{Cx, El, ScrollSpec, col, el, text_input};
 
-use crate::app::{App, DRAFT, FOOTER_HEIGHT, SCROLL, TOP_BAR_HEIGHT, focus_name};
+use crate::app::{App, DRAFT, SCROLL, TOP_BAR_HEIGHT};
 use crate::styler;
-use crate::theme::{Palette, draft_font, ui_font};
+use crate::theme::{Palette, draft_font};
 
 pub fn view(s: &App, cx: &mut Cx<App>) -> El {
-    let p = Palette::new(s.prefs.appearance().is_dark(cx.system_dark()));
+    let dark = s.prefs.appearance().is_dark(cx.system_dark());
+    let p = Palette::new(dark);
+    // The Windows caption buttons follow the app's appearance, not the system's.
+    cx.caption_color(p.text);
     // Reading the caret here keeps Rune tracking it, which `App::poll` scrolls by.
     let _ = cx.caret(DRAFT);
     let f = s.frame();
     let (w, h) = (f.editor_w, f.height);
-    let chrome = if s.chrome_visible { 1.0 } else { 0.0 };
-    // Chrome comes back quickly and leaves slowly.
-    let fade = Spring::new(if s.chrome_visible { 0.25 } else { 0.6 }, 0.0);
+    let opacity = if s.chrome_visible { 1.0 } else { 0.0 };
+    let fade = crate::chrome::fade(s.chrome_visible, cx.is_reduced_motion());
 
-    let top_bar = el().key("top-bar").absolute(f.editor_x(), 0.0).size(w, TOP_BAR_HEIGHT).fill(p.canvas).child(
-        text(s.shown_title())
-            .key("title")
-            .font(ui_font(13.0, false))
-            .color(if s.draft.has_manual_title { p.text.alpha(0.75) } else { p.quiet })
-            .align(Align::Center)
-            .truncate()
-            .absolute(80.0, 11.0)
-            .w((w - 160.0).max(0.0))
-            .opacity(chrome)
-            .opacity_motion(fade),
-    );
+    // The chrome's places: the sidebar button and toolbar first, then the menu bar after the
+    // sidebar button, then the title clear of both.
+    let mut insets = crate::chrome::insets(cx, 0.0);
+    let first = crate::chrome::layout(&f, insets);
+    let bar = crate::menubar::layout(&first);
+    insets.leading_extra = bar.right;
+    let chrome = crate::chrome::layout(&f, insets);
+    let folded = bar.folded.is_some();
+    let scale = cx.env().scale;
 
-    col()
+    let mut top_bar = el().key("top-bar").absolute(f.editor_x(), 0.0).size(w, TOP_BAR_HEIGHT).fill(p.canvas).window_drag();
+    if let Some(r) = chrome.title {
+        top_bar = top_bar.child(crate::title::view(s, &p, [r[0] - f.editor_x(), r[1], r[2], r[3]], opacity, fade.clone()));
+    }
+    let (menu_titles, menus) = crate::menubar::view(s, &p, &bar, opacity, fade.clone());
+
+    let mut root = col()
         .key("window")
         .w_full()
         .h_full()
         .fill(p.canvas)
-        .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
-        .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
+        .on_layout(move |s: &mut App, r| {
+            s.window = (r[2], r[3]);
+            s.menus.folded = folded;
+        })
+        .on_screen_layout(move |s: &mut App, r| s.screen_frame_changed(r, scale))
+        .on_window_focus(|s: &mut App, focused, tx| s.window_focus_changed(focused, tx))
+        .on_pointer_move_local(|s: &mut App, at, tx| s.pointer_moved(at.window_x, at.window_y, tx))
         .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
         .child(top_bar)
-        .child(footer(s, &p, chrome, fade))
+        .child(crate::footer::view(s, &p, opacity, fade.clone()))
+        .children(menu_titles)
+        .children(crate::chrome::view(s, &p, &chrome, opacity, fade))
+        .children(menus);
+    if let Some(alert) = crate::ui::alert_view(s, &p) {
+        root = root.child(alert);
+    }
+    root
 }
 
 fn draft(s: &App, p: &Palette) -> El {
@@ -53,6 +69,7 @@ fn draft(s: &App, p: &Palette) -> El {
     let field = text_input(&s.edit, draft_font(m.font_size))
         .key(DRAFT)
         .label("Draft")
+        .description("The draft text. Use the Format menu or Markdown to style text.")
         .color(p.text)
         .caret(p.caret, p.selection)
         .caret_size(m.caret_width(), m.caret_height())
@@ -69,45 +86,11 @@ fn draft(s: &App, p: &Palette) -> El {
         .on_edit(|s: &mut App| &mut s.edit)
         .on_input_change(|s: &mut App, tx| s.text_did_change(tx))
         .on_input_key(crate::keys::draft_key)
+        .on_secondary_press(|s: &mut App, press, tx| s.open_context_menu(press, tx))
         .on_submit(|s: &mut App, tx| {
             s.edit.insert("\n");
             s.text_did_change(tx);
         })
         .on_layout(|s: &mut App, r| s.field_rect = r);
     col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(field)
-}
-
-/// Status on the left, counts on the right, focus mode centred only when there's room for it.
-fn footer(s: &App, p: &Palette, chrome: f32, fade: Spring) -> El {
-    let f = s.frame();
-    let (w, h) = (f.editor_w, f.height);
-    let font = ui_font(12.0, false);
-    let cw = 12.0 * crate::theme::CHARACTER_WIDTH_EM;
-    let width = |t: &str| if t.is_empty() { 0.0 } else { (t.chars().count() as f32 * cw).ceil() + 4.0 };
-    let pad = 20.0;
-    let (status, warning) = s.status();
-    let counts = if s.prefs.show_counts() { s.counts.as_str() } else { "" };
-    let focus = if s.focus == FocusUnit::Off { "" } else { focus_name(s.focus) };
-
-    let counts_w = width(counts).min(w * 0.45);
-    let status_max = (w - pad * 2.0 - counts_w - if counts_w > 0.0 { 16.0 } else { 0.0 }).max(0.0);
-    let status_w = width(&status).min(status_max);
-    let focus_w = width(focus);
-    let focus_x = (w - focus_w) / 2.0;
-    let focus_fits = focus_x > pad + status_w + 12.0 && focus_x + focus_w < w - pad - counts_w - 12.0;
-
-    let label = |key: &str, t: &str, x: f32, width: f32, align: Align| {
-        text(t).key(key).font(font).color(p.quiet).align(align).truncate().absolute(x, 9.0).size(width, 16.0).opacity(chrome).opacity_motion(fade)
-    };
-    let mut bar = el().key("footer").absolute(f.editor_x(), h - FOOTER_HEIGHT).size(w, FOOTER_HEIGHT).fill(p.canvas);
-    if !status.is_empty() {
-        bar = bar.child(label("status", &status, pad, status_w, Align::Start).color(if warning { p.warning } else { p.quiet }).label("Save status"));
-    }
-    if counts.is_empty() {
-        return bar;
-    }
-    if focus_fits && !focus.is_empty() {
-        bar = bar.child(label("focus", focus, focus_x, focus_w, Align::Center));
-    }
-    bar.child(label("counts", counts, w - pad - counts_w, counts_w, Align::End).label("Counts"))
 }

@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::time::Duration;
 
 use rune::{TextEdit, Tx};
-use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownBlockKind, MarkdownLine, markdown, text_stats, text_units, title_deriver};
+use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownBlockKind, MarkdownLine, markdown, text_stats, text_units};
 
 use crate::prefs::Prefs;
 use crate::styler::Metrics;
@@ -101,6 +101,15 @@ pub struct App {
     /// A draft was just loaded: start its scroll view from the top before finding the caret.
     scroll_reset: bool,
     typed_since_poll: bool,
+
+    /// The status label's tooltip, which outlives the status that set it (see `footer.rs`).
+    pub status_tooltip: Option<String>,
+    pub title: crate::title::TitleField,
+    /// Alerts waiting to be answered, the first one showing (see `ui.rs`).
+    pub alerts: Vec<crate::ui::Alert>,
+    pub documents: crate::documents::Documents,
+    pub menus: crate::menubar::MenuBar,
+    pub win: crate::window::Window,
 }
 
 fn after(tx: &mut Tx, now: f64, seconds: f64) -> Option<f64> {
@@ -148,6 +157,12 @@ impl App {
             recenter_delay: 0,
             scroll_reset: false,
             typed_since_poll: false,
+            status_tooltip: None,
+            title: Default::default(),
+            alerts: Vec::new(),
+            documents: Default::default(),
+            menus: Default::default(),
+            win: crate::window::Window::new(),
         };
         app.load(document);
         app
@@ -214,7 +229,7 @@ impl App {
         self.scroll_reset = true;
     }
 
-    fn sync_document_from_view(&mut self) {
+    pub fn sync_document_from_view(&mut self) {
         if self.draft.body != self.edit.text {
             self.draft.body = self.edit.text.clone();
         }
@@ -243,19 +258,6 @@ impl App {
 
     // MARK: Status and counts
 
-    /// The footer's status text and whether it is a warning.
-    pub fn status(&self) -> (String, bool) {
-        if let Some(t) = &self.transient {
-            return (t.clone(), false);
-        }
-        match &self.save_state {
-            SaveState::Saved => (if self.draft.path().is_none() { String::new() } else { "Saved".into() }, false),
-            SaveState::Pending => ("Edited".into(), false),
-            SaveState::Recovered => ("Recovered unsaved changes".into(), false),
-            SaveState::Failed(m) => (format!("Not saved — {m}"), true),
-        }
-    }
-
     pub fn flash_message(&mut self, message: impl Into<String>, tx: &mut Tx) {
         self.transient = Some(message.into());
         self.show_chrome(true, tx);
@@ -274,11 +276,6 @@ impl App {
         if self.counts_at.is_none() {
             self.counts_at = after(tx, self.now, 0.15);
         }
-    }
-
-    /// The title shown in the top bar: empty for an untouched new draft.
-    pub fn shown_title(&self) -> &str {
-        if self.draft.title == title_deriver::UNTITLED && self.draft.body.is_empty() { "" } else { &self.draft.title }
     }
 
     // MARK: Parsing
@@ -331,18 +328,6 @@ impl App {
         self.recenter = Some(false);
         self.recenter_delay = 1;
         self.flash_message(format!("Text size {} pt", size as i32), tx);
-    }
-
-    pub fn new_draft(&mut self, tx: &mut Tx) {
-        if self.draft.is_empty_untitled() {
-            tx.focus(DRAFT, false);
-            return;
-        }
-        if !self.flush() {
-            return;
-        }
-        let doc = self.library.new_draft();
-        self.load(doc);
     }
 
     // MARK: Scrolling
@@ -398,26 +383,53 @@ impl App {
 
     // MARK: Chrome
 
+    /// A key went to the draft: the chrome hides at once, unless a save failed or the Assist
+    /// panel is open (any key, arrows included, as the Swift's `keyDown` hook did).
     pub fn user_is_typing(&mut self) {
         self.typed_since_poll = true;
-        if matches!(self.save_state, SaveState::Failed(_)) {
+        if matches!(self.save_state, SaveState::Failed(_)) || self.assist_visible {
             return;
         }
+        self.hide_chrome();
+    }
+
+    /// Fades the chrome out, unless the title is being edited or a menu is open.
+    pub fn hide_chrome(&mut self) {
         self.chrome_hide_at = None;
+        if self.title.editing || self.menus.open.is_some() || self.menus.armed {
+            return;
+        }
         self.chrome_visible = false;
     }
 
+    /// Fades the chrome in; with `auto_hide`, it fades out again after 3 s if nothing keeps it.
     pub fn show_chrome(&mut self, auto_hide: bool, tx: &mut Tx) {
         self.chrome_visible = true;
         self.chrome_hide_at = if auto_hide { after(tx, self.now, 3.0) } else { None };
     }
 
+    /// The pointer moved over the window: the chrome shows, while the window is key.
+    pub fn pointer_moved(&mut self, x: f32, y: f32, tx: &mut Tx) {
+        self.pointer = (x, y);
+        if self.win.key {
+            self.show_chrome(true, tx);
+        }
+    }
+
+    /// Whether the pointer is over the top bar, the footer or the sidebar panel.
     fn pointer_over_chrome(&self) -> bool {
         let (x, y) = self.pointer;
         let f = self.frame();
-        let over_sidebar = (self.sidebar_visible || self.sidebar_peeking) && x < SIDEBAR_WIDTH.max(f.side_w);
+        let sidebar_w = if self.sidebar_peeking { SIDEBAR_WIDTH } else { f.side_w };
+        let over_sidebar = (0.0..sidebar_w).contains(&x) && (0.0..=f.height).contains(&y);
         let in_editor = (f.editor_x()..f.panel_x()).contains(&x);
         over_sidebar || (in_editor && ((0.0..TOP_BAR_HEIGHT).contains(&y) || (self.window.1 - FOOTER_HEIGHT..=self.window.1).contains(&y)))
+    }
+
+    /// When the 3 s timer fires the chrome hides only if the window is key, the text has the
+    /// keyboard, no save has failed and the pointer isn't over the bars or the sidebar.
+    fn chrome_may_hide(&self) -> bool {
+        self.win.key && self.edit.focused && !matches!(self.save_state, SaveState::Failed(_)) && !self.pointer_over_chrome()
     }
 
     // MARK: Editing
@@ -492,10 +504,13 @@ impl App {
             self.transient = None;
             changed = true;
         }
-        if due(&mut self.chrome_hide_at, clock) && !matches!(self.save_state, SaveState::Failed(_)) && !self.pointer_over_chrome() && self.edit.focused {
-            self.chrome_visible = false;
+        if due(&mut self.chrome_hide_at, clock) && self.chrome_may_hide() {
+            self.hide_chrome();
             changed = true;
         }
+        changed |= self.poll_title(tx);
+        self.refresh_status_tooltip();
+        self.sync_window(tx);
         if std::mem::take(&mut self.scroll_reset) {
             tx.scroll_to_y(SCROLL, 0.0);
             tx.wake_after(Duration::ZERO);
