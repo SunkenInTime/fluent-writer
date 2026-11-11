@@ -2420,8 +2420,7 @@ checksum = "73072a9470554c8e794778acece2312661218aaabb635600957d952cf01c716e"
 [[package]]
 name = "parley"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61bd0c0c1737f0b3d3726dc06b225083af213b61913e4fbae1670613a106c6ce"
+source = "git+https://github.com/SunkenInTime/rune?rev=80aa93203d30ab3787c7700f0f1391f38010616f#80aa93203d30ab3787c7700f0f1391f38010616f"
 dependencies = [
  "fontique",
  "hashbrown 0.17.1",
@@ -2450,8 +2449,7 @@ checksum = "9c4482d912d7671a7cd2089794f90ef3bb5f5f8c738230fb0fcd50fa020f0ed3"
 [[package]]
 name = "parley_engine"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b74c0d373e462e504ad4436710a39f099e18e848e1ee711f70cd2dcd5a69b290"
+source = "git+https://github.com/SunkenInTime/rune?rev=80aa93203d30ab3787c7700f0f1391f38010616f#80aa93203d30ab3787c7700f0f1391f38010616f"
 dependencies = [
  "fontique",
  "harfrust",
@@ -2911,7 +2909,7 @@ dependencies = [
 [[package]]
 name = "rune"
 version = "0.0.1"
-source = "git+https://github.com/SunkenInTime/rune?rev=fbf048cc0d080cfd60e2f046483d49d687cf1723#fbf048cc0d080cfd60e2f046483d49d687cf1723"
+source = "git+https://github.com/SunkenInTime/rune?rev=80aa93203d30ab3787c7700f0f1391f38010616f#80aa93203d30ab3787c7700f0f1391f38010616f"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2992,12 +2990,12 @@ dependencies = [
 [[package]]
 name = "rune-motion"
 version = "0.1.0"
-source = "git+https://github.com/SunkenInTime/rune?rev=fbf048cc0d080cfd60e2f046483d49d687cf1723#fbf048cc0d080cfd60e2f046483d49d687cf1723"
+source = "git+https://github.com/SunkenInTime/rune?rev=80aa93203d30ab3787c7700f0f1391f38010616f#80aa93203d30ab3787c7700f0f1391f38010616f"
 
 [[package]]
 name = "rune-staging"
 version = "0.0.1"
-source = "git+https://github.com/SunkenInTime/rune?rev=fbf048cc0d080cfd60e2f046483d49d687cf1723#fbf048cc0d080cfd60e2f046483d49d687cf1723"
+source = "git+https://github.com/SunkenInTime/rune?rev=80aa93203d30ab3787c7700f0f1391f38010616f#80aa93203d30ab3787c7700f0f1391f38010616f"
 dependencies = [
  "wgpu",
 ]
@@ -3005,7 +3003,7 @@ dependencies = [
 [[package]]
 name = "rune-taffy"
 version = "0.0.1"
-source = "git+https://github.com/SunkenInTime/rune?rev=fbf048cc0d080cfd60e2f046483d49d687cf1723#fbf048cc0d080cfd60e2f046483d49d687cf1723"
+source = "git+https://github.com/SunkenInTime/rune?rev=80aa93203d30ab3787c7700f0f1391f38010616f#80aa93203d30ab3787c7700f0f1391f38010616f"
 dependencies = [
  "taffy",
 ]
