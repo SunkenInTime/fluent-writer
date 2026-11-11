@@ -155,7 +155,8 @@ fn main() {
         poll: Some(|s, clock, tx| s.poll(clock, tx)),
         on_key: Some(keys::window_key),
         setup: Some(|s, waker| s.set_waker(waker)),
-        ..AppSpec::new("Fluent Writer", opening.size, || unreachable!("the app starts from `init`"), view::view)
+        // The dev build names itself "Fluent Writer Dev" (its menus, the About panel). `MainMenu.swift:22`
+        ..AppSpec::new(crate::app_name(), opening.size, || unreachable!("the app starts from `init`"), view::view)
     })
     .init(move || {
         let mut app = App::new(library, prefs, document);
@@ -192,5 +193,5 @@ fn fatal(message: String) {
         col().w_full().h_full().fill(p.canvas).child(ui::sheet("fatal", &p, (480.0, 200.0), 420.0, body, |_: &mut Fatal, tx: &mut Tx| tx.quit()))
     }
     eprintln!("{} couldn't open its folders: {message}", app_name());
-    rune::App::new(AppSpec::<Fatal>::new("Fluent Writer", (480.0, 200.0), || unreachable!(), view)).init(move || Fatal(message)).run();
+    rune::App::new(AppSpec::<Fatal>::new(app_name(), (480.0, 200.0), || unreachable!(), view)).init(move || Fatal(message)).run();
 }

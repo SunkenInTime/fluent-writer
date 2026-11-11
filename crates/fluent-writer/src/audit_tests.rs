@@ -755,3 +755,23 @@ fn a_preview_opens_at_its_first_change_on_a_long_draft() {
     assert!(field.rect[1] < -1000.0, "scrolled far down: the field's top is at {}", field.rect[1]);
     assert!(rt.state.preview.edit.focused, "the diff has the keyboard");
 }
+
+/// On quit the draft's notes are written and the live-state file goes.
+/// `main.swift:44-46`, `NotesController.swift:254-257`
+#[test]
+fn quitting_writes_the_notes_and_removes_the_live_state() {
+    let (mut rt, dir) = saved("Some words");
+    rt.update(|s, _| {
+        s.add_comment(0..4, "Why?");
+    });
+    settle(&mut rt, 0.6);
+    rt.state.notes.wait_for_disk();
+    let live = dir.path().join("support/Live.json");
+    assert!(live.exists(), "written while running");
+    run(&mut rt, Command::Quit);
+    rt.state.notes.wait_for_disk();
+    assert!(!live.exists(), "gone on quit");
+    let store = writer_core::NotesStore::new(dir.path().join("support"));
+    let path = dir.path().join("drafts/Saved.md");
+    assert_eq!(store.load(path.to_str().unwrap(), "Some words").comments.len(), 1, "the comment was written");
+}
