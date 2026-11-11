@@ -12,111 +12,111 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 
 ### Theme colours (each is a light/dark pair that follows the effective appearance)
 
-- [ ] `canvas` 247,247,247 / 26,26,26 — window background, top bar, footer, Assist panel background. `Theme.swift:35`
-- [ ] `text` 25,25,25 / 218,218,216 — body text. `Theme.swift:36`
-- [ ] `dimmed` 199,196,194 / 78,78,76 — text outside the focused sentence or paragraph. `Theme.swift:37`
-- [ ] `markup` 172,170,168 / 112,112,110 — Markdown markers, link URLs, underline colour. `Theme.swift:38`
-- [ ] `quiet` 150,148,146 / 120,120,118 — chrome labels, code-block text, secondary text. `Theme.swift:39`
-- [ ] `caret` 0,190,255 / 0,175,245 — caret, active toolbar button tint. `Theme.swift:40`
-- [ ] `selection` 178,228,250 / 22,78,104 — selected-text background. `Theme.swift:41`
-- [ ] `hairline` 228,228,226 / 44,44,44 — 1 px dividers, card borders, image frame. `Theme.swift:42`
-- [ ] `sidebar` 240,240,239 / 32,32,32 — sidebar background. `Theme.swift:43`
-- [ ] `sidebarSelection` 222,222,220 / 52,52,52 — sidebar selected row; toolbar button plate. `Theme.swift:44`
-- [ ] `sidebarCurrent` 230,230,228 / 44,44,44 — sidebar row of the open file. `Theme.swift:45`
-- [ ] `codeBackground` 236,236,234 / 38,38,38 — inline code background, image placeholder fill. `Theme.swift:46`
-- [ ] `warning` 196,54,36 / 240,110,90 — failed-save and failed-request text. `Theme.swift:47`
-- [ ] `inserted` 30,130,70 / 110,200,140 — diff inserted text. `Theme.swift:48`
-- [ ] `insertedBackground` 30,160,80 α0.13 / 90,200,120 α0.18. `Theme.swift:49`
-- [ ] `deleted` 180,50,40 / 235,120,105 — diff deleted text and its strikethrough. `Theme.swift:50`
-- [ ] `deletedBackground` 210,60,40 α0.11 / 230,90,70 α0.17. `Theme.swift:51`
-- [ ] `commentHighlight` 255,196,0 α0.20 / 255,196,40 α0.16. `Theme.swift:52`
-- [ ] `commentHighlightActive` 255,180,0 α0.42 / 255,190,40 α0.34. `Theme.swift:53`
-- [ ] `card` 255,255,255 / 34,34,34. `Theme.swift:54`
-- [ ] `cardHover` 252,252,251 / 40,40,40. `Theme.swift:55`
-- [ ] `cardSelected` 234,246,253 / 26,54,70. `Theme.swift:56`
-- [ ] `icon` 120,118,116 / 172,172,170 — toolbar icons at rest. `Theme.swift:57`
-- [ ] `banner` 238,238,236 / 36,36,36 — version preview bar. `Theme.swift:58`
+- [x] `canvas` 247,247,247 / 26,26,26 — window background, top bar, footer, Assist panel background. `Theme.swift:35`
+- [x] `text` 25,25,25 / 218,218,216 — body text. `Theme.swift:36`
+- [x] `dimmed` 199,196,194 / 78,78,76 — text outside the focused sentence or paragraph. `Theme.swift:37`
+- [x] `markup` 172,170,168 / 112,112,110 — Markdown markers, link URLs, underline colour. `Theme.swift:38`
+- [x] `quiet` 150,148,146 / 120,120,118 — chrome labels, code-block text, secondary text. `Theme.swift:39`
+- [x] `caret` 0,190,255 / 0,175,245 — caret, active toolbar button tint. `Theme.swift:40`
+- [x] `selection` 178,228,250 / 22,78,104 — selected-text background. `Theme.swift:41`
+- [x] `hairline` 228,228,226 / 44,44,44 — 1 px dividers, card borders, image frame. `Theme.swift:42`
+- [x] `sidebar` 240,240,239 / 32,32,32 — sidebar background. `Theme.swift:43`
+- [x] `sidebarSelection` 222,222,220 / 52,52,52 — sidebar selected row; toolbar button plate. `Theme.swift:44`
+- [x] `sidebarCurrent` 230,230,228 / 44,44,44 — sidebar row of the open file. `Theme.swift:45`
+- [x] `codeBackground` 236,236,234 / 38,38,38 — inline code background, image placeholder fill. `Theme.swift:46`
+- [x] `warning` 196,54,36 / 240,110,90 — failed-save and failed-request text. `Theme.swift:47`
+- [x] `inserted` 30,130,70 / 110,200,140 — diff inserted text. `Theme.swift:48`
+- [x] `insertedBackground` 30,160,80 α0.13 / 90,200,120 α0.18. `Theme.swift:49`
+- [x] `deleted` 180,50,40 / 235,120,105 — diff deleted text and its strikethrough. `Theme.swift:50`
+- [x] `deletedBackground` 210,60,40 α0.11 / 230,90,70 α0.17. `Theme.swift:51`
+- [x] `commentHighlight` 255,196,0 α0.20 / 255,196,40 α0.16. `Theme.swift:52`
+- [x] `commentHighlightActive` 255,180,0 α0.42 / 255,190,40 α0.34. `Theme.swift:53`
+- [x] `card` 255,255,255 / 34,34,34. `Theme.swift:54`
+- [x] `cardHover` 252,252,251 / 40,40,40. `Theme.swift:55`
+- [x] `cardSelected` 234,246,253 / 26,54,70. `Theme.swift:56`
+- [x] `icon` 120,118,116 / 172,172,170 — toolbar icons at rest. `Theme.swift:57`
+- [x] `banner` 238,238,236 / 36,36,36 — version preview bar. `Theme.swift:58`
 
 ### Window
 
-- [ ] One window per app. Initial content size 1060×760 pt. `EditorController.swift:111-115`
-- [ ] Window style: titled, closable, miniaturizable, resizable, full-size content view. `EditorController.swift:113`
-- [ ] Title bar is transparent and the window title text is hidden; content draws under the title bar. `EditorController.swift:140-141`
-- [ ] Window background colour is `canvas`. `EditorController.swift:142`
-- [ ] Minimum window size 420×320 pt. `EditorController.swift:143`
-- [ ] Window tabbing is disabled (no tab bar, no "Merge All Windows"). `EditorController.swift:144`
-- [ ] Window frame is saved and restored under the autosave name `FluentWriterMain`; with no saved frame the window is centred on screen. **(AppKit built-in)** `EditorController.swift:146-147`
-- [ ] Mouse-moved events are delivered to the window (needed for chrome reveal and sidebar peek). `EditorController.swift:149`
-- [ ] Window title (used by the Window menu, Mission Control and accessibility) is the draft title. `EditorController.swift:356`, `EditorController.swift:440`
-- [ ] Window `representedURL` is the draft's file for local files and nil for remote files and unsaved drafts. **(AppKit built-in: Window-menu/proxy behaviour of representedURL)** `EditorController.swift:355`, `EditorController.swift:441`
-- [ ] Closing the window first runs the leave-document check (save, or ask if the save failed); cancelling keeps the window open. `EditorController.swift:841-843`
-- [ ] When the window closes, the app quits. `EditorController.swift:845-847`, `main.swift:48`
-- [ ] Full screen via View › Enter Full Screen (⌃⌘F); entering and leaving full screen re-lays out the window. **(AppKit built-in: full screen itself)** `MainMenu.swift:131`, `EditorController.swift:838-839`
-- [ ] In full screen the traffic lights are hidden by the system. **(AppKit built-in)**
-- [ ] Window resize re-lays out every region (sidebar, top bar, footer, editor, Assist panel, preview). `EditorController.swift:826`, `EditorController.swift:238-259`
+- [x] One window per app. Initial content size 1060×760 pt. `EditorController.swift:111-115`
+- [x] Window style: titled, closable, miniaturizable, resizable, full-size content view. `EditorController.swift:113` — *Rust: Rune's window; checked on Linux (X11).*
+- [ ] Title bar is transparent and the window title text is hidden; content draws under the title bar. `EditorController.swift:140-141` — *Rust: Built (`Chrome { full_size_content, drag_regions }`, the top bar is the drag region); not run on a Mac. Windows draws its own 40 pt title bar with the system buttons over its right end (`Titlebar`); Linux keeps the window manager's frame, which Rune can't replace there.*
+- [x] Window background colour is `canvas`. `EditorController.swift:142`
+- [x] Minimum window size 420×320 pt. `EditorController.swift:143`
+- [ ] Window tabbing is disabled (no tab bar, no "Merge All Windows"). `EditorController.swift:144` — *Rust: Rune has no option for `NSWindow.tabbingMode`; not built.*
+- [x] Window frame is saved and restored under the autosave name `FluentWriterMain`; with no saved frame the window is centred on screen. **(AppKit built-in)** `EditorController.swift:146-147` — *Rust: Saved in preferences.json as the content rect, scale and (off macOS) the decoration offset; restored at launch; centred on the first frame when none was saved. Checked in a real X11 window. Not kept on screen if the saved display is gone.*
+- [x] Mouse-moved events are delivered to the window (needed for chrome reveal and sidebar peek). `EditorController.swift:149`
+- [x] Window title (used by the Window menu, Mission Control and accessibility) is the draft title. `EditorController.swift:356`, `EditorController.swift:440`
+- [ ] Window `representedURL` is the draft's file for local files and nil for remote files and unsaved drafts. **(AppKit built-in: Window-menu/proxy behaviour of representedURL)** `EditorController.swift:355`, `EditorController.swift:441` — *Rust: Rune has no API for a window's represented file (proxy icon).*
+- [x] Closing the window first runs the leave-document check (save, or ask if the save failed); cancelling keeps the window open. `EditorController.swift:841-843` — *Rust: Rune can't refuse a close: the window hides, the check runs, and when it asks the window comes back with the alert; Keep Editing leaves it open. Checked in a real X11 window.*
+- [x] When the window closes, the app quits. `EditorController.swift:845-847`, `main.swift:48`
+- [ ] Full screen via View › Enter Full Screen (⌃⌘F); entering and leaving full screen re-lays out the window. **(AppKit built-in: full screen itself)** `MainMenu.swift:131`, `EditorController.swift:838-839` — *Rust: Wired to `Tx::toggle_full_screen` (F11 off macOS), title follows; not observed in a real window.*
+- [x] In full screen the traffic lights are hidden by the system. **(AppKit built-in)** — *Rust: The system's.*
+- [x] Window resize re-lays out every region (sidebar, top bar, footer, editor, Assist panel, preview). `EditorController.swift:826`, `EditorController.swift:238-259`
 
 ### Layout regions
 
-- [ ] Top bar is 40 pt tall, filled with `canvas`, spans only the editor column (between sidebar and Assist panel). `EditorController.swift:92`, `EditorController.swift:250`, `EditorController.swift:34-40`
-- [ ] Footer is 34 pt tall, filled with `canvas`, at the bottom of the editor column, drawn over the bottom of the text scroll view. `EditorController.swift:93`, `EditorController.swift:251`
-- [ ] Editor scroll view starts 40 pt from the top and runs to the bottom of the window (under the footer). `EditorController.swift:252`
-- [ ] Assist panel width: 0 when hidden; when shown `min(380, max(260, round(windowWidth × 0.5)))`. `EditorController.swift:84`, `EditorController.swift:241`
-- [ ] Pinned sidebar width: `min(260, max(0, windowWidth − assistWidth − 320))` so the editor keeps at least 320 pt when possible. `EditorController.swift:242`
-- [ ] While the sidebar peeks it is always 260 pt wide and does not push the editor. `EditorController.swift:244-246`
-- [ ] Editor column width = window width − Assist width − pinned sidebar width. `EditorController.swift:243`
+- [x] Top bar is 40 pt tall, filled with `canvas`, spans only the editor column (between sidebar and Assist panel). `EditorController.swift:92`, `EditorController.swift:250`, `EditorController.swift:34-40`
+- [x] Footer is 34 pt tall, filled with `canvas`, at the bottom of the editor column, drawn over the bottom of the text scroll view. `EditorController.swift:93`, `EditorController.swift:251`
+- [x] Editor scroll view starts 40 pt from the top and runs to the bottom of the window (under the footer). `EditorController.swift:252`
+- [x] Assist panel width: 0 when hidden; when shown `min(380, max(260, round(windowWidth × 0.5)))`. `EditorController.swift:84`, `EditorController.swift:241`
+- [x] Pinned sidebar width: `min(260, max(0, windowWidth − assistWidth − 320))` so the editor keeps at least 320 pt when possible. `EditorController.swift:242`
+- [x] While the sidebar peeks it is always 260 pt wide and does not push the editor. `EditorController.swift:244-246`
+- [x] Editor column width = window width − Assist width − pinned sidebar width. `EditorController.swift:243`
 - [ ] Assist panel sits at the right edge, full window height. `EditorController.swift:253`
 
 ### Chrome fade
 
-- [ ] Chrome = title field, status label, counts label, focus label, sidebar button, the four toolbar buttons, and the traffic lights (traffic lights only when the sidebar is not pinned). The bars themselves do not fade. `EditorController.swift:682`
-- [ ] Chrome fades out over 0.6 s and in over 0.25 s; with Reduce Motion both are instant. `EditorController.swift:683-687`
-- [ ] Any key press in the editor hides the chrome immediately, unless the save state is failed or the Assist panel is open. `EditorController.swift:650-655`, `EditorTextView.swift:61-64`
-- [ ] Chrome does not hide while the title field is being edited. `EditorController.swift:659`
-- [ ] Moving the mouse over the window shows the chrome and starts a 3.0 s auto-hide timer. `EditorController.swift:150-153`, `EditorController.swift:664-679`
-- [ ] When the 3.0 s timer fires it hides the chrome only if: the window is key, the editor text view is first responder, the save state is not failed, and the pointer is not over the top bar, the footer, or the sidebar panel. `EditorController.swift:672-676`
-- [ ] When the window loses key status, the draft is saved and the chrome is shown with no auto-hide. `EditorController.swift:828-831`
-- [ ] When the window becomes key, the chrome is shown with auto-hide, and the sidebar list reloads if the sidebar is pinned. `EditorController.swift:833-836`
-- [ ] A failed save (local or remote upload) shows the chrome with no auto-hide. `EditorController.swift:469`, `EditorController.swift:485`
-- [ ] Every transient footer message shows the chrome with auto-hide. `EditorController.swift:494`
+- [ ] Chrome = title field, status label, counts label, focus label, sidebar button, the four toolbar buttons, and the traffic lights (traffic lights only when the sidebar is not pinned). The bars themselves do not fade. `EditorController.swift:682` — *Rust: All built (plus the in-window menu bar) except the traffic lights: Rune has no API to fade them.*
+- [x] Chrome fades out over 0.6 s and in over 0.25 s; with Reduce Motion both are instant. `EditorController.swift:683-687` — *Rust: Ease-in-out tweens. Reduce Motion asks for an instant change; Rune may still give opacity its 0.15 s reduced-motion fade.*
+- [x] Any key press in the editor hides the chrome immediately, unless the save state is failed or the Assist panel is open. `EditorController.swift:650-655`, `EditorTextView.swift:61-64`
+- [x] Chrome does not hide while the title field is being edited. `EditorController.swift:659`
+- [x] Moving the mouse over the window shows the chrome and starts a 3.0 s auto-hide timer. `EditorController.swift:150-153`, `EditorController.swift:664-679`
+- [x] When the 3.0 s timer fires it hides the chrome only if: the window is key, the editor text view is first responder, the save state is not failed, and the pointer is not over the top bar, the footer, or the sidebar panel. `EditorController.swift:672-676`
+- [x] When the window loses key status, the draft is saved and the chrome is shown with no auto-hide. `EditorController.swift:828-831`
+- [x] When the window becomes key, the chrome is shown with auto-hide, and the sidebar list reloads if the sidebar is pinned. `EditorController.swift:833-836` — *Rust: The sidebar reload is left to the sidebar port (marked in `window.rs`).*
+- [x] A failed save (local or remote upload) shows the chrome with no auto-hide. `EditorController.swift:469`, `EditorController.swift:485` — *Rust: Local; the remote upload is the SSH port's.*
+- [x] Every transient footer message shows the chrome with auto-hide. `EditorController.swift:494`
 
 ### Toolbar buttons (ChromeButton)
 
-- [ ] Four buttons pinned to the window's top-right corner, right to left: Assist, Versions, Comments, then Add Comment. They do not move when panels open. `ChromeControls.swift:98-109`
-- [ ] Button slot is 28×24 pt; the rightmost slot's right edge is 12 pt from the window edge; 2 pt between Assist/Versions/Comments, 10 pt between Comments and Add Comment. `ChromeControls.swift:10`, `ChromeControls.swift:101-108`
-- [ ] Buttons are vertically centred on the sidebar button. `ChromeControls.swift:102`, `ChromeControls.swift:106`
-- [ ] Buttons always draw above other views (re-raised on every layout). `ChromeControls.swift:109`
-- [ ] Add Comment: SF Symbol `plus.bubble`, accessibility label "Add comment", tooltip "Comment on the selection or this line (⌥⌘M)", runs Add Comment. `ChromeControls.swift:71`, `ChromeControls.swift:83-84`
-- [ ] Comments: `text.bubble`, label "Comments", tooltip "Comments (⇧⌘M)", toggles the Assist panel on its Comments tab. `ChromeControls.swift:72`, `ChromeControls.swift:85-86`, `ChromeControls.swift:159-166`
-- [ ] Versions: `clock.arrow.circlepath`, label "Versions", tooltip "Versions (⌥⌘V)", toggles the Assist panel on its Versions tab. `ChromeControls.swift:73`, `ChromeControls.swift:87-88`
-- [ ] Assist: `sparkles`, label "Assist", tooltip "Assist (⌥⌘J)", toggles the Assist panel on its Ask tab. `ChromeControls.swift:74`, `ChromeControls.swift:89-90`
-- [ ] Toggle rule: if the panel is open on that tab, close it; otherwise open it on that tab (keeping the current provider). `ChromeControls.swift:159-162`
-- [ ] Symbols are drawn at 13 pt, regular weight, image only, no border. `ChromeControls.swift:14-18`
-- [ ] Icon tint: `caret` when active, `text` while hovered, `icon` otherwise. `ChromeControls.swift:47`
-- [ ] Hover/active plate: rounded rect, corner radius 6, filled with `sidebarSelection` at α0.7 on hover and α0.9 when active; clear otherwise. `ChromeControls.swift:26`, `ChromeControls.swift:49-50`
-- [ ] Hover tracking only while the window is key. `ChromeControls.swift:33`
-- [ ] Colours refresh when the appearance changes. `ChromeControls.swift:41-44`
-- [ ] Count badge: IBM Plex Mono Medium 9 pt, centred, in the button's top-right corner, 11 pt tall, width `max(12, textWidth + 2)`, 1 pt from the right edge. `ChromeControls.swift:19-21`, `ChromeControls.swift:53-57`
-- [ ] Badge text is the count, or "99+" above 99; hidden at 0. `ChromeControls.swift:60-66`
-- [ ] Badge colour is `caret` when the button is active, `text` otherwise. `ChromeControls.swift:48`
-- [ ] Button accessibility value is the count when > 0, none otherwise. `ChromeControls.swift:63`
-- [ ] Comments badge shows the number of open comments (detached ones included). `ChromeControls.swift:136-137`
-- [ ] Comments button is active while the Assist panel is open on Comments. `ChromeControls.swift:140`
-- [ ] Versions button is active while the panel is open on Versions, or while a version preview is showing. `ChromeControls.swift:141`
-- [ ] Assist button is active while the panel is open on Ask. `ChromeControls.swift:142`
+- [x] Four buttons pinned to the window's top-right corner, right to left: Assist, Versions, Comments, then Add Comment. They do not move when panels open. `ChromeControls.swift:98-109`
+- [x] Button slot is 28×24 pt; the rightmost slot's right edge is 12 pt from the window edge; 2 pt between Assist/Versions/Comments, 10 pt between Comments and Add Comment. `ChromeControls.swift:10`, `ChromeControls.swift:101-108`
+- [x] Buttons are vertically centred on the sidebar button. `ChromeControls.swift:102`, `ChromeControls.swift:106`
+- [x] Buttons always draw above other views (re-raised on every layout). `ChromeControls.swift:109`
+- [x] Add Comment: SF Symbol `plus.bubble`, accessibility label "Add comment", tooltip "Comment on the selection or this line (⌥⌘M)", runs Add Comment. `ChromeControls.swift:71`, `ChromeControls.swift:83-84` — *Rust: Drawn as SVG; runs Add Comment (placeholder until the comments port).*
+- [x] Comments: `text.bubble`, label "Comments", tooltip "Comments (⇧⌘M)", toggles the Assist panel on its Comments tab. `ChromeControls.swift:72`, `ChromeControls.swift:85-86`, `ChromeControls.swift:159-166` — *Rust: Drawn as SVG; the toggle is `App::toggle_panel`, a placeholder until the Assist port.*
+- [x] Versions: `clock.arrow.circlepath`, label "Versions", tooltip "Versions (⌥⌘V)", toggles the Assist panel on its Versions tab. `ChromeControls.swift:73`, `ChromeControls.swift:87-88` — *Rust: As Comments.*
+- [x] Assist: `sparkles`, label "Assist", tooltip "Assist (⌥⌘J)", toggles the Assist panel on its Ask tab. `ChromeControls.swift:74`, `ChromeControls.swift:89-90` — *Rust: As Comments.*
+- [ ] Toggle rule: if the panel is open on that tab, close it; otherwise open it on that tab (keeping the current provider). `ChromeControls.swift:159-162` — *Rust: Needs the Assist panel; `App::toggle_panel` is the hook.*
+- [x] Symbols are drawn at 13 pt, regular weight, image only, no border. `ChromeControls.swift:14-18` — *Rust: SVG bodies in a 16 pt box with 1.1 pt strokes, the size a 13 pt symbol draws at.*
+- [x] Icon tint: `caret` when active, `text` while hovered, `icon` otherwise. `ChromeControls.swift:47`
+- [x] Hover/active plate: rounded rect, corner radius 6, filled with `sidebarSelection` at α0.7 on hover and α0.9 when active; clear otherwise. `ChromeControls.swift:26`, `ChromeControls.swift:49-50`
+- [x] Hover tracking only while the window is key. `ChromeControls.swift:33`
+- [x] Colours refresh when the appearance changes. `ChromeControls.swift:41-44`
+- [x] Count badge: IBM Plex Mono Medium 9 pt, centred, in the button's top-right corner, 11 pt tall, width `max(12, textWidth + 2)`, 1 pt from the right edge. `ChromeControls.swift:19-21`, `ChromeControls.swift:53-57` — *Rust: Built; no count shows until the comments port fills `open_comment_count`.*
+- [x] Badge text is the count, or "99+" above 99; hidden at 0. `ChromeControls.swift:60-66`
+- [x] Badge colour is `caret` when the button is active, `text` otherwise. `ChromeControls.swift:48`
+- [x] Button accessibility value is the count when > 0, none otherwise. `ChromeControls.swift:63`
+- [ ] Comments badge shows the number of open comments (detached ones included). `ChromeControls.swift:136-137` — *Rust: Hook `App::open_comment_count` for the comments port.*
+- [ ] Comments button is active while the Assist panel is open on Comments. `ChromeControls.swift:140` — *Rust: Hook `App::open_panel_tab` for the Assist port.*
+- [ ] Versions button is active while the panel is open on Versions, or while a version preview is showing. `ChromeControls.swift:141` — *Rust: Hooks `open_panel_tab` and `previewing_version`.*
+- [ ] Assist button is active while the panel is open on Ask. `ChromeControls.swift:142` — *Rust: Hook `open_panel_tab`.*
 
 ### Sidebar button
 
-- [ ] SF Symbol `sidebar.left`, label "Toggle sidebar", tooltip "Show or hide the sidebar (⌃⌘S). Point at the left edge to peek." `EditorController.swift:77`
-- [ ] Placed 12 pt right of the zoom (green) traffic light, vertically centred on it; in full screen at x 12, y 8. Size 28×24. `ChromeControls.swift:121-128`
-- [ ] Always drawn above the sidebar panel. `ChromeControls.swift:129-132`
-- [ ] Active (caret tint and plate) while the sidebar is pinned. `ChromeControls.swift:143`
-- [ ] Click toggles the sidebar; if the sidebar is peeking, click pins it instead. `RemoteEditing.swift:49-62`, `ChromeControls.swift:249-258`
+- [x] SF Symbol `sidebar.left`, label "Toggle sidebar", tooltip "Show or hide the sidebar (⌃⌘S). Point at the left edge to peek." `EditorController.swift:77` — *Rust: Off macOS the tooltip names that platform's chord.*
+- [x] Placed 12 pt right of the zoom (green) traffic light, vertically centred on it; in full screen at x 12, y 8. Size 28×24. `ChromeControls.swift:121-128` — *Rust: From Rune's `titlebar_inset` and AppKit's default light placement; at (12, 8) on Windows and Linux.*
+- [x] Always drawn above the sidebar panel. `ChromeControls.swift:129-132`
+- [x] Active (caret tint and plate) while the sidebar is pinned. `ChromeControls.swift:143`
+- [ ] Click toggles the sidebar; if the sidebar is peeking, click pins it instead. `RemoteEditing.swift:49-62`, `ChromeControls.swift:249-258` — *Rust: Runs View › Show Sidebar, which is the sidebar port's.*
 
 ### Title field position
 
-- [ ] Title field is centred in the top bar, 18 pt tall, at `midY − 9` of the sidebar button. `ChromeControls.swift:116`
-- [ ] Title width = `max(0, min(420, topBarWidth − 2 × reserve))`, where reserve = the largest of: the part of the toolbar buttons over the top bar (+8 pt), the sidebar button's right edge + 12 pt inside the top bar, and 24 pt. `ChromeControls.swift:110-115`
-- [ ] Title field is hidden when its width is under 60 pt. `ChromeControls.swift:117`
+- [x] Title field is centred in the top bar, 18 pt tall, at `midY − 9` of the sidebar button. `ChromeControls.swift:116`
+- [x] Title width = `max(0, min(420, topBarWidth − 2 × reserve))`, where reserve = the largest of: the part of the toolbar buttons over the top bar (+8 pt), the sidebar button's right edge + 12 pt inside the top bar, and 24 pt. `ChromeControls.swift:110-115` — *Rust: Off macOS the reserve also clears the in-window menu bar.*
+- [x] Title field is hidden when its width is under 60 pt. `ChromeControls.swift:117`
 
 ### Opening the Assist panel in a narrow window
 
@@ -231,22 +231,22 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] Drafts folder `~/Documents/Fluent Writer` (dev: `~/Documents/Fluent Writer Dev`), created if missing. `WriterCore/AppVariant.swift:23-26`, `WriterCore/DraftStore.swift:89-95`
 - [ ] Support folder `~/Library/Application Support/Fluent Writer` (dev: `… Fluent Writer Dev`) with a `Recovery` subfolder, created if missing. `WriterCore/AppVariant.swift:18-21`, `WriterCore/DraftStore.swift:83`, `WriterCore/DraftStore.swift:94-95`
 - [ ] Stale temporary files (`.<name>.fw-tmp-<uuid>`) from interrupted saves are deleted at launch in the drafts, support and recovery folders. `WriterCore/DraftStore.swift:96-98`, `WriterCore/AtomicFile.swift:15`, `WriterCore/AtomicFile.swift:61-62`
-- [ ] If the folders can't be created, an error alert is shown and the app quits. `main.swift:12-18`
-- [ ] Launch document: `--open <path>` if it opens; else the newest recovery snapshot whose file is missing or that never had a file; else a new empty draft. `main.swift:19-27`, `WriterCore/DraftStore.swift:170-172`
+- [x] If the folders can't be created, an error alert is shown and the app quits. `main.swift:12-18` — *Rust: A small window with the message and OK; not run against a real failure.*
+- [x] Launch document: `--open <path>` if it opens; else the newest recovery snapshot whose file is missing or that never had a file; else a new empty draft. `main.swift:19-27`, `WriterCore/DraftStore.swift:170-172`
 - [ ] The app activates and comes to the front at launch. `main.swift:31`
-- [ ] Opening files from Finder / Dock opens the first URL in the existing window (same rules as Open). `main.swift:34-36`
+- [ ] Opening files from Finder / Dock opens the first URL in the existing window (same rules as Open). `main.swift:34-36` — *Rust: Rune passes no file-open events (only `myapp://` links). Windows and Linux "Open With" pass the path as an argument, which is opened at launch; a second launch starts a second app.*
 
 ### Opening
 
-- [ ] Accepted extensions: md, markdown, txt, text. `WriterCore/DraftStore.swift:87`
-- [ ] Opening the file that is already open just focuses the editor. `Commands.swift:41`
-- [ ] Opening another file first runs the leave-document check. `Commands.swift:42`
+- [x] Accepted extensions: md, markdown, txt, text. `WriterCore/DraftStore.swift:87`
+- [x] Opening the file that is already open just focuses the editor. `Commands.swift:41`
+- [x] Opening another file first runs the leave-document check. `Commands.swift:42`
 - [ ] Files are read as UTF-8, falling back to ISO Latin 1. `WriterCore/DraftStore.swift:134`
-- [ ] Error "Couldn't open “<name>”: <reason>" when the file can't be read; "“<name>” isn't a text file." when it can't be decoded; shown as a sheet alert. `WriterCore/DraftStore.swift:130-136`, `EditorController.swift:850-854`
-- [ ] The caret/selection saved for that file is restored on open; with no record, the caret goes to the end of the file. `WriterCore/DraftStore.swift:139-142`
-- [ ] A remembered title and manual-title flag are restored; with no record the title is the file name without extension. `WriterCore/DraftStore.swift:137-138`
-- [ ] Opened files are added to the system recent-documents list (Dock menu). **(AppKit built-in: the list)** `Commands.swift:45`
-- [ ] File › Open Other File… (⇧⌘O): open panel as a sheet, md/markdown/txt/text only, single file, starting in the drafts folder. `Commands.swift:26-38`
+- [x] Error "Couldn't open “<name>”: <reason>" when the file can't be read; "“<name>” isn't a text file." when it can't be decoded; shown as a sheet alert. `WriterCore/DraftStore.swift:130-136`, `EditorController.swift:850-854` — *Rust: In the app's alert. "isn't a text file" can't happen: Latin 1 decodes any bytes, as in the Swift.*
+- [x] The caret/selection saved for that file is restored on open; with no record, the caret goes to the end of the file. `WriterCore/DraftStore.swift:139-142`
+- [x] A remembered title and manual-title flag are restored; with no record the title is the file name without extension. `WriterCore/DraftStore.swift:137-138`
+- [ ] Opened files are added to the system recent-documents list (Dock menu). **(AppKit built-in: the list)** `Commands.swift:45` — *Rust: No Rune API.*
+- [x] File › Open Other File… (⇧⌘O): open panel as a sheet, md/markdown/txt/text only, single file, starting in the drafts folder. `Commands.swift:26-38`
 
 ### Saving
 
@@ -259,38 +259,38 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] File-name stem: `/` and `:` become `-`, control characters removed, leading/trailing spaces and dots trimmed, "Untitled" if empty, cut to 120 characters if over 200 UTF-8 bytes. `WriterCore/TitleDeriver.swift:29-36`
 - [ ] A draft in the drafts folder without a manual title is renamed on save to follow its derived title (unless the current name is already that title, or that title plus " N"). Files elsewhere keep their name. `WriterCore/DraftStore.swift:232-241`
 - [ ] File › Save (⌘S) saves now and flashes "Saved"; does nothing for an empty new draft. `Commands.swift:51-54`
-- [ ] Save also happens when the window loses focus, before opening another document, before quitting, and before the Open picker appears. `EditorController.swift:828-831`, `EditorController.swift:386-387`, `Commands.swift:15`
+- [x] Save also happens when the window loses focus, before opening another document, before quitting, and before the Open picker appears. `EditorController.swift:828-831`, `EditorController.swift:386-387`, `Commands.swift:15` — *Rust: Window focus, opening, quitting; the Open picker is that port's.*
 - [ ] Caret position is remembered (in `state.json`, not in the file) 1.0 s after the selection stops changing, and on every save. `EditorController.swift:727-731`, `EditorController.swift:368`
 - [ ] A successful save in Recent sidebar mode refreshes the Recent list. `EditorController.swift:372-374`
-- [ ] A save failure keeps the failure message in the footer as "Not saved — <message>" in `warning`, with the message as tooltip, and keeps the chrome visible. `EditorController.swift:378-381`, `EditorController.swift:481-485`
-- [ ] Save failure messages read "Couldn't save “<file>”: <system reason>." `WriterCore/AtomicFile.swift:8-11`
+- [x] A save failure keeps the failure message in the footer as "Not saved — <message>" in `warning`, with the message as tooltip, and keeps the chrome visible. `EditorController.swift:378-381`, `EditorController.swift:481-485`
+- [x] Save failure messages read "Couldn't save “<file>”: <system reason>." `WriterCore/AtomicFile.swift:8-11`
 - [ ] While a save has failed, further typing does not change the footer back to "Edited". `EditorController.swift:706`
 - [ ] Each failed save writes a recovery snapshot (`Recovery/<draft-uuid>.json`: path, title, manual-title flag, body, caret, time). `WriterCore/DraftStore.swift:212-222`
 - [ ] A successful save deletes the draft's recovery snapshot and any other snapshot for the same path. `WriterCore/DraftStore.swift:207-208`
 
 ### Leaving a document
 
-- [ ] Before replacing the open draft (New, Open, open over SSH, sidebar click, close, quit) the app saves; if the save fails it shows a warning alert: title "This draft couldn't be saved.", text "<message>\n\nA recovery copy is kept and will be offered next time.", buttons "Keep Editing" (default), "Save As…", "Continue". `EditorController.swift:385-400`
-- [ ] Keep Editing cancels; Save As… runs Save As and proceeds only if it succeeds; Continue proceeds. `EditorController.swift:395-399`
-- [ ] For remote files with edits not yet uploaded, the leave check also uploads synchronously (see SSH). `EditorController.swift:387`, `RemoteEditing.swift:194-211`
-- [ ] Quitting stops any running Assist request, then runs the leave check; cancel aborts the quit. `main.swift:38-42`
-- [ ] On quit the open draft's comments/versions are flushed to disk and the live-state file is deleted. `main.swift:44-46`, `NotesController.swift:254-257`
+- [x] Before replacing the open draft (New, Open, open over SSH, sidebar click, close, quit) the app saves; if the save fails it shows a warning alert: title "This draft couldn't be saved.", text "<message>\n\nA recovery copy is kept and will be offered next time.", buttons "Keep Editing" (default), "Save As…", "Continue". `EditorController.swift:385-400` — *Rust: `App::leave_document(tx, then)`, for the sidebar and SSH ports to call too.*
+- [x] Keep Editing cancels; Save As… runs Save As and proceeds only if it succeeds; Continue proceeds. `EditorController.swift:395-399`
+- [ ] For remote files with edits not yet uploaded, the leave check also uploads synchronously (see SSH). `EditorController.swift:387`, `RemoteEditing.swift:194-211` — *Rust: The SSH port's; marked in `leave_document`.*
+- [x] Quitting stops any running Assist request, then runs the leave check; cancel aborts the quit. `main.swift:38-42` — *Rust: The leave check; stopping Assist is marked for that port in `App::quit`.*
+- [ ] On quit the open draft's comments/versions are flushed to disk and the live-state file is deleted. `main.swift:44-46`, `NotesController.swift:254-257` — *Rust: The comments port's; marked in `app_will_quit`. The caret and window frame are saved there.*
 
 ### New draft
 
-- [ ] File › New (⌘N): if the open draft is empty and never saved, just focus the editor; otherwise leave-check then open an empty "Untitled" draft. `Commands.swift:7-11`
+- [x] File › New (⌘N): if the open draft is empty and never saved, just focus the editor; otherwise leave-check then open an empty "Untitled" draft. `Commands.swift:7-11`
 
 ### Save As
 
-- [ ] File › Save As… (⇧⌘S): app-modal save panel (not a sheet), `.md` only, name "<title stem>.md", starting in the drafts folder. `EditorController.swift:403-408`
-- [ ] Writes the current text atomically to the chosen file, opens that file in place of the current one keeping the current selection, and discards the old draft's recovery snapshot. The old file stays where it was. `EditorController.swift:409-416`
-- [ ] Save As errors show as a sheet alert. `EditorController.swift:417-419`
+- [x] File › Save As… (⇧⌘S): app-modal save panel (not a sheet), `.md` only, name "<title stem>.md", starting in the drafts folder. `EditorController.swift:403-408` — *Rust: Rune's save dialog (a sheet on macOS, oddity 27 not kept: Rune has no app-modal panel). A name without `.md` gets it.*
+- [x] Writes the current text atomically to the chosen file, opens that file in place of the current one keeping the current selection, and discards the old draft's recovery snapshot. The old file stays where it was. `EditorController.swift:409-416`
+- [x] Save As errors show as a sheet alert. `EditorController.swift:417-419`
 
 ### Recovery
 
 - [ ] Opening a file whose recovery snapshot differs from the file loads the snapshot's text, title and caret; footer shows "Recovered unsaved changes"; the recovered text is saved to the file 0.2 s later. `WriterCore/DraftStore.swift:145-156`, `EditorController.swift:334-336`, `EditorController.swift:478-480`
 - [ ] A snapshot identical to the file is deleted on open. `WriterCore/DraftStore.swift:153-155`
-- [ ] A recovered never-saved draft is saved as a new file 0.2 s after launch. `WriterCore/DraftStore.swift:162-167`, `EditorController.swift:334-336`
+- [x] A recovered never-saved draft is saved as a new file 0.2 s after launch. `WriterCore/DraftStore.swift:162-167`, `EditorController.swift:334-336`
 
 ### Show in Finder
 
@@ -301,56 +301,56 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 
 ## 6. Title and rename
 
-- [ ] Title field: borderless, no background, no focus ring, centred, IBM Plex Mono 13 pt, single line, truncates at the tail. `EditorController.swift:205-212`
-- [ ] Placeholder "Untitled". `EditorController.swift:214`, `WriterCore/TitleDeriver.swift:4`
-- [ ] Tooltip "Click to rename"; accessibility label "Draft title". `EditorController.swift:215-216`
-- [ ] Field is empty (placeholder shows) when the title is "Untitled" and the draft is empty; otherwise it shows the title. `EditorController.swift:437`
-- [ ] Title colour: `text` at α0.75 when the writer named the draft, `quiet` when derived. `EditorController.swift:438`
-- [ ] The field isn't overwritten while it is being edited. `EditorController.swift:436`
+- [x] Title field: borderless, no background, no focus ring, centred, IBM Plex Mono 13 pt, single line, truncates at the tail. `EditorController.swift:205-212` — *Rust: A label at rest, a text field while editing (a click puts the caret at the end rather than where clicked).*
+- [x] Placeholder "Untitled". `EditorController.swift:214`, `WriterCore/TitleDeriver.swift:4` — *Rust: Drawn in `dimmed`.*
+- [x] Tooltip "Click to rename"; accessibility label "Draft title". `EditorController.swift:215-216`
+- [x] Field is empty (placeholder shows) when the title is "Untitled" and the draft is empty; otherwise it shows the title. `EditorController.swift:437`
+- [x] Title colour: `text` at α0.75 when the writer named the draft, `quiet` when derived. `EditorController.swift:438`
+- [x] The field isn't overwritten while it is being edited. `EditorController.swift:436`
 - [ ] Derived title = first line that isn't blank, a fence or a rule, with its block marker dropped, inline Markdown removed, whitespace collapsed. `WriterCore/TitleDeriver.swift:7-17`
 - [ ] Derived titles are cut to 60 characters; if a space falls past the halfway point the cut is at the last space and trailing " ,;:-" are trimmed. `WriterCore/TitleDeriver.swift:19-26`
-- [ ] Without a manual title, the title follows the first line as you type. `EditorController.swift:701-705`
-- [ ] File › Rename… (⇧⌘R): shows chrome (no auto-hide), focuses the title field and selects all its text. `Commands.swift:58-62`
-- [ ] Clicking the title field starts editing it and shows the chrome with no auto-hide. `EditorController.swift:791-793`
-- [ ] Ending the edit (Return, Tab, clicking away) with a changed title renames. `EditorController.swift:795-813`
-- [ ] Esc in the title field restores the current title and returns focus to the text without renaming. `EditorController.swift:815-822`
-- [ ] Rename trims whitespace; an empty title clears the manual title and goes back to the derived one. `WriterCore/DraftStore.swift:243-251`
-- [ ] Renaming a local file moves it in the same folder to "<new stem>.<same extension>" (" 2", " 3"… if taken). `WriterCore/DraftStore.swift:252-262`
+- [x] Without a manual title, the title follows the first line as you type. `EditorController.swift:701-705`
+- [x] File › Rename… (⇧⌘R): shows chrome (no auto-hide), focuses the title field and selects all its text. `Commands.swift:58-62`
+- [x] Clicking the title field starts editing it and shows the chrome with no auto-hide. `EditorController.swift:791-793`
+- [x] Ending the edit (Return, Tab, clicking away) with a changed title renames. `EditorController.swift:795-813`
+- [x] Esc in the title field restores the current title and returns focus to the text without renaming. `EditorController.swift:815-822`
+- [x] Rename trims whitespace; an empty title clears the manual title and goes back to the derived one. `WriterCore/DraftStore.swift:243-251`
+- [x] Renaming a local file moves it in the same folder to "<new stem>.<same extension>" (" 2", " 3"… if taken). `WriterCore/DraftStore.swift:252-262`
 - [ ] Renaming a remote file changes only the title shown, not the remote file name. `WriterCore/DraftStore.swift:252`
-- [ ] Renaming a never-saved draft that has text saves it first (so it gets a file), then renames. `EditorController.swift:800`
-- [ ] A rename failure shows "Couldn't rename “<file>”: <reason>" as a sheet alert. `WriterCore/DraftStore.swift:257-258`, `EditorController.swift:803-805`
-- [ ] After a rename, comments and versions move with the file. `EditorController.swift:442`, `NotesController.swift:53-63`
-- [ ] After the edit ends, focus returns to the text and chrome auto-hide restarts. `EditorController.swift:811-812`
+- [x] Renaming a never-saved draft that has text saves it first (so it gets a file), then renames. `EditorController.swift:800`
+- [x] A rename failure shows "Couldn't rename “<file>”: <reason>" as a sheet alert. `WriterCore/DraftStore.swift:257-258`, `EditorController.swift:803-805`
+- [ ] After a rename, comments and versions move with the file. `EditorController.swift:442`, `NotesController.swift:53-63` — *Rust: The comments port's; marked in `end_title_edit`.*
+- [x] After the edit ends, focus returns to the text and chrome auto-hide restarts. `EditorController.swift:811-812`
 
 ---
 
 ## 7. Footer status and counts
 
-- [ ] Three labels in the footer: status (left), focus mode (centre), counts (right); IBM Plex Mono 12 pt, `quiet`, truncate at tail. `EditorController.swift:221-228`
-- [ ] Labels are 16 pt tall at y 9 in the 34 pt footer; side padding 20 pt. `EditorController.swift:264-273`
-- [ ] Counts width is its text width + 4, capped at 45% of the footer width; right-aligned to 20 pt from the right edge. `EditorController.swift:265-267`
-- [ ] Status width is its text width + 4, capped at the space left of the counts minus 16 pt gap. `EditorController.swift:268-270`
-- [ ] Focus label is centred and shown only when it fits with at least 12 pt clear of both status and counts. `EditorController.swift:271-274`
-- [ ] Focus label text: "Sentence", "Paragraph", "Typewriter", or empty for Off. `EditorController.swift:562`, `EditorController.swift:567-574`
+- [x] Three labels in the footer: status (left), focus mode (centre), counts (right); IBM Plex Mono 12 pt, `quiet`, truncate at tail. `EditorController.swift:221-228`
+- [x] Labels are 16 pt tall at y 9 in the 34 pt footer; side padding 20 pt. `EditorController.swift:264-273`
+- [x] Counts width is its text width + 4, capped at 45% of the footer width; right-aligned to 20 pt from the right edge. `EditorController.swift:265-267`
+- [x] Status width is its text width + 4, capped at the space left of the counts minus 16 pt gap. `EditorController.swift:268-270` — *Rust: Measured from the text on screen, flashes included (oddity 4 fixed).*
+- [x] Focus label is centred and shown only when it fits with at least 12 pt clear of both status and counts. `EditorController.swift:271-274` — *Rust: Also when counts are hidden (the earlier Rust hid it then).*
+- [x] Focus label text: "Sentence", "Paragraph", "Typewriter", or empty for Off. `EditorController.swift:562`, `EditorController.swift:567-574` — *Rust: Shown from launch for a saved focus mode; the Swift showed it only after the mode was next changed.*
 - [ ] Counts text: "<w> word(s)  ·  <c> character(s)" (two spaces each side of the dot), numbers with locale grouping separators. `WriterCore/TextStats.swift:30-40`
 - [ ] With a selection: "<sw> of <w> words  ·  <sc> of <c> characters"; singular/plural follows the total. `WriterCore/TextStats.swift:36-38`
 - [ ] Counts measure the plain-text export (Markdown delimiters excluded); characters are grapheme clusters. `WriterCore/TextStats.swift:17-28`
 - [ ] Counts update at most every 0.15 s after typing or selection change. `EditorController.swift:520-523`
-- [ ] View › Show Counts (⌥⌘C) toggles the counts label; checked when shown; persisted. `Commands.swift:156-160`, `Commands.swift:177`
-- [ ] Status "Saved" for a saved local file (tooltip: full path). `EditorController.swift:471-474`
-- [ ] Status empty for a never-saved draft. `EditorController.swift:472`
-- [ ] Status "Edited" while a save is pending. `EditorController.swift:475-477`
-- [ ] Status "Recovered unsaved changes". `EditorController.swift:478-480`
-- [ ] Status "Not saved — <message>" in `warning`. `EditorController.swift:481-485`
-- [ ] Remote, uploaded: "Saved to <host>". `EditorController.swift:457`
-- [ ] Remote, saved locally but not uploaded: "Saved locally · not yet on <host>". `EditorController.swift:457`
-- [ ] Remote, uploading: "Saving to <host>…". `EditorController.swift:459-461`
-- [ ] Remote, server unreachable at open: "Offline · editing the local copy". `EditorController.swift:462-464`
-- [ ] Remote, upload failed: "Not on <host> yet — <message>" in `warning`, tooltip the message, chrome kept visible. `EditorController.swift:465-469`
-- [ ] Remote status tooltip is the remote location (`host:path` or `ssh://host:port/path`). `EditorController.swift:454`
+- [x] View › Show Counts (⌥⌘C) toggles the counts label; checked when shown; persisted. `Commands.swift:156-160`, `Commands.swift:177`
+- [x] Status "Saved" for a saved local file (tooltip: full path). `EditorController.swift:471-474`
+- [x] Status empty for a never-saved draft. `EditorController.swift:472`
+- [x] Status "Edited" while a save is pending. `EditorController.swift:475-477`
+- [x] Status "Recovered unsaved changes". `EditorController.swift:478-480`
+- [x] Status "Not saved — <message>" in `warning`. `EditorController.swift:481-485`
+- [ ] Remote, uploaded: "Saved to <host>". `EditorController.swift:457` — *Rust: Strings documented at the hook `App::remote_status` (`footer.rs`) for the SSH port.*
+- [ ] Remote, saved locally but not uploaded: "Saved locally · not yet on <host>". `EditorController.swift:457` — *Rust: As above.*
+- [ ] Remote, uploading: "Saving to <host>…". `EditorController.swift:459-461` — *Rust: As above.*
+- [ ] Remote, server unreachable at open: "Offline · editing the local copy". `EditorController.swift:462-464` — *Rust: As above.*
+- [ ] Remote, upload failed: "Not on <host> yet — <message>" in `warning`, tooltip the message, chrome kept visible. `EditorController.swift:465-469` — *Rust: As above.*
+- [ ] Remote status tooltip is the remote location (`host:path` or `ssh://host:port/path`). `EditorController.swift:454` — *Rust: As above; the tooltip plumbing is built.*
 - [ ] `<host>` in remote statuses is the host without `user@`. `WriterCore/Remote.swift:48`
-- [ ] Transient messages replace the status for 2.2 s, then the status returns. `EditorController.swift:491-501`
-- [ ] Every transient message is announced to VoiceOver at medium priority. `EditorController.swift:495`
+- [x] Transient messages replace the status for 2.2 s, then the status returns. `EditorController.swift:491-501`
+- [x] Every transient message is announced to VoiceOver at medium priority. `EditorController.swift:495` — *Rust: A polite live region carrying only flashes; not tried with a screen reader.*
 
 ---
 
@@ -360,31 +360,31 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### App menu (titled with the app name: "Fluent Writer" or "Fluent Writer Dev")
 
-- [ ] "About <app name>", no shortcut, always; standard About panel (name, version 0.2.0 (2)). **(AppKit built-in panel)** `MainMenu.swift:25`
+- [x] "About <app name>", no shortcut, always; standard About panel (name, version 0.2.0 (2)). **(AppKit built-in panel)** `MainMenu.swift:25` — *Rust: Off macOS at the end of the in-window File menu, as an alert with the version. The macOS app menu is the native-menu work.*
 - [ ] separator `MainMenu.swift:26`
 - [ ] "Hide <app name>" ⌘H, always. **(AppKit built-in)** `MainMenu.swift:27`
 - [ ] "Hide Others" ⌥⌘H, always. **(AppKit built-in)** `MainMenu.swift:28`
 - [ ] "Show All", no shortcut. **(AppKit built-in)** `MainMenu.swift:29`
 - [ ] separator `MainMenu.swift:30`
-- [ ] "Quit <app name>" ⌘Q; runs the quit flow (stop Assist, leave check). `MainMenu.swift:31`, `main.swift:38-42`
+- [x] "Quit <app name>" ⌘Q; runs the quit flow (stop Assist, leave check). `MainMenu.swift:31`, `main.swift:38-42`
 - [ ] No Settings/Preferences item and no Services submenu in the app menu. `MainMenu.swift:24-32`
 
 ### File
 
-- [ ] "New" ⌘N, always → New draft. `MainMenu.swift:35`, `Commands.swift:7-11`
+- [x] "New" ⌘N, always → New draft. `MainMenu.swift:35`, `Commands.swift:7-11`
 - [ ] "Open…" ⌘O, always → Open picker sheet. `MainMenu.swift:36`, `Commands.swift:13-24`
-- [ ] "Open Other File…" ⇧⌘O, always → file open panel. `MainMenu.swift:37`
+- [x] "Open Other File…" ⇧⌘O, always → file open panel. `MainMenu.swift:37`
 - [ ] "Open Folder…" ⌥⌘O, always → folder panel for the sidebar. `MainMenu.swift:38`
 - [ ] "Open over SSH…" ⌃⌘O, always → SSH sheet. `MainMenu.swift:39`
 - [ ] separator `MainMenu.swift:40`
-- [ ] "Save" ⌘S, always → save now. `MainMenu.swift:41`
-- [ ] "Save As…" ⇧⌘S, always → Save As. `MainMenu.swift:42`
-- [ ] "Rename…" ⇧⌘R, always → edit title. `MainMenu.swift:43`
+- [x] "Save" ⌘S, always → save now. `MainMenu.swift:41`
+- [x] "Save As…" ⇧⌘S, always → Save As. `MainMenu.swift:42`
+- [x] "Rename…" ⇧⌘R, always → edit title. `MainMenu.swift:43`
 - [ ] "Show in Finder" ⌥⌘R, enabled for local drafts with a file or text. `MainMenu.swift:44`, `Commands.swift:182`
 - [ ] separator `MainMenu.swift:45`
 - [ ] "Copy for Twitter" ⇧⌘C; title becomes "Copy Selection for Twitter" when text is selected; disabled when the draft is empty. `MainMenu.swift:46`, `Commands.swift:183-185`
 - [ ] separator `MainMenu.swift:47`
-- [ ] "Close" ⌘W → close the window (leave check, then quit). `MainMenu.swift:48`
+- [x] "Close" ⌘W → close the window (leave check, then quit). `MainMenu.swift:48`
 
 ### Edit
 
@@ -437,7 +437,7 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### View
 
-- [ ] "Show Sidebar" ⌃⌘S; title "Hide Sidebar" while the sidebar is pinned. `MainMenu.swift:113`, `Commands.swift:181`
+- [x] "Show Sidebar" ⌃⌘S; title "Hide Sidebar" while the sidebar is pinned. `MainMenu.swift:113`, `Commands.swift:181` — *Rust: The title; the action is the sidebar port's.*
 - [ ] "Recent Files" ⇧⌘E → pin the sidebar (if needed) and switch it to Recent. `MainMenu.swift:114`, `RemoteEditing.swift:64-69`
 - [ ] separator `MainMenu.swift:115`
 - [ ] "Toggle Focus" ⌘D; title "Turn Focus Off" while Sentence or Paragraph is on, else "Turn <Sentence|Paragraph> Focus On" naming the last dimming mode. `MainMenu.swift:116`, `Commands.swift:175`
@@ -450,10 +450,10 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 - [ ] "Smaller Text" ⌘−; next smaller size; disabled at 14 pt. `MainMenu.swift:125`, `Commands.swift:144-146`, `Commands.swift:180`
 - [ ] "Default Text Size" ⌘0 → 19 pt. `MainMenu.swift:126`, `Commands.swift:148`
 - [ ] separator `MainMenu.swift:127`
-- [ ] Appearance › "Match System", "Light", "Dark"; the current one is checked; choosing one applies and saves it. `MainMenu.swift:107-111`, `MainMenu.swift:128`, `Commands.swift:150-154`, `Commands.swift:176`, `Theme.swift:15-21`
+- [x] Appearance › "Match System", "Light", "Dark"; the current one is checked; choosing one applies and saves it. `MainMenu.swift:107-111`, `MainMenu.swift:128`, `Commands.swift:150-154`, `Commands.swift:176`, `Theme.swift:15-21` — *Rust: In-app colours change live. Rune has no API to set the native appearance (macOS traffic lights, menus and panels follow the system).*
 - [ ] "Show Counts" ⌥⌘C, checked when counts are shown. `MainMenu.swift:129`, `Commands.swift:177`
 - [ ] separator `MainMenu.swift:130`
-- [ ] "Enter Full Screen" ⌃⌘F; the system retitles it "Exit Full Screen" in full screen. **(AppKit built-in)** `MainMenu.swift:131`
+- [x] "Enter Full Screen" ⌃⌘F; the system retitles it "Exit Full Screen" in full screen. **(AppKit built-in)** `MainMenu.swift:131` — *Rust: Off macOS the in-window menu retitles it from the app's own state.*
 
 ### Assist
 
@@ -473,16 +473,16 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### Window
 
-- [ ] "Minimize" ⌘M. **(AppKit built-in)** `MainMenu.swift:153`
-- [ ] "Zoom", no shortcut. **(AppKit built-in)** `MainMenu.swift:154`
-- [ ] The menu is registered as the Window menu, so the system lists the open window in it. **(AppKit built-in)** `MainMenu.swift:156`
-- [ ] No Help menu. `MainMenu.swift:20-159`
+- [x] "Minimize" ⌘M. **(AppKit built-in)** `MainMenu.swift:153`
+- [x] "Zoom", no shortcut. **(AppKit built-in)** `MainMenu.swift:154`
+- [ ] The menu is registered as the Window menu, so the system lists the open window in it. **(AppKit built-in)** `MainMenu.swift:156` — *Rust: Native macOS menus are separate work.*
+- [x] No Help menu. `MainMenu.swift:20-159`
 
 ### Editor context menu (right-click in the text)
 
-- [ ] First item "Comment on Selection…" when text is selected, else "Comment on This Line…" → Add Comment. `EditorController.swift:774-776`
-- [ ] When the click is on a commented passage: that comment becomes active and a "Show Comment" item opens the Comments tab. `EditorController.swift:777-780`
-- [ ] Then a separator, then the standard text-view menu: spelling suggestions, Look Up, Translate, Search With Google, Cut/Copy/Paste, Share, Spelling and Grammar, Substitutions, Transformations, Speech, Services. **(AppKit built-in)** `EditorController.swift:781-786`
+- [x] First item "Comment on Selection…" when text is selected, else "Comment on This Line…" → Add Comment. `EditorController.swift:774-776` — *Rust: Native pop-up via `tx.popup_menu`; drawn in the app where Rune has none (Linux).*
+- [ ] When the click is on a commented passage: that comment becomes active and a "Show Comment" item opens the Comments tab. `EditorController.swift:777-780` — *Rust: The comments port's; marked in `context_rows`.*
+- [ ] Then a separator, then the standard text-view menu: spelling suggestions, Look Up, Translate, Search With Google, Cut/Copy/Paste, Share, Spelling and Grammar, Substitutions, Transformations, Speech, Services. **(AppKit built-in)** `EditorController.swift:781-786` — *Rust: Cut, Copy, Paste and Check Spelling While Typing. Rune's own field menu (spelling suggestions) can't be extended with app items, so it is replaced.*
 
 ---
 
@@ -920,7 +920,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] `folderLocal` (path) or `folderRemote` (location string), mutually exclusive. `Preferences.swift:48-63`
 - [ ] `lastSSHLocation`, default empty. `Preferences.swift:65-68`
 - [ ] `assist.provider` (codex|claude), default codex. `AssistController.swift:138`, `AssistController.swift:670`
-- [ ] Window frame under `NSWindow Frame FluentWriterMain`. **(AppKit built-in)** `EditorController.swift:146`
+- [x] Window frame under `NSWindow Frame FluentWriterMain`. **(AppKit built-in)** `EditorController.swift:146` — *Rust: `windowFrame` and `windowDecoration` in preferences.json.*
 - [ ] Grammar, autocorrect, smart quotes, smart dashes and text replacement toggles are not saved by the app and reset at launch. `EditorController.swift:164-167`
 - [ ] `<support>/state.json`: per-file record (path, title, manual-title flag, selection, last opened, remote location, upload-pending flag) and last opened path. `WriterCore/DraftStore.swift:3-18`, `WriterCore/DraftStore.swift:292-317`
 - [ ] `<support>/Recovery/<uuid>.json` recovery snapshots. `WriterCore/DraftStore.swift:218-222`
@@ -937,10 +937,10 @@ All format commands apply through the text system as one undo step with the name
 ## 19. Accessibility labels and announcements
 
 - [ ] Editor text: label "Draft", help "The draft text. Use the Format menu or Markdown to style text." `EditorController.swift:180-181`
-- [ ] Title field label "Draft title". `EditorController.swift:215`
-- [ ] Status label "Save status", value = its text. `EditorController.swift:229`, `EditorController.swift:487`
-- [ ] Counts label "Counts", value = its text. `EditorController.swift:230`, `EditorController.swift:516`
-- [ ] Sidebar button "Toggle sidebar"; toolbar "Add comment", "Comments", "Versions", "Assist", each with count value when non-zero. `EditorController.swift:77`, `ChromeControls.swift:71-74`, `ChromeControls.swift:63`
+- [x] Title field label "Draft title". `EditorController.swift:215`
+- [x] Status label "Save status", value = its text. `EditorController.swift:229`, `EditorController.swift:487`
+- [x] Counts label "Counts", value = its text. `EditorController.swift:230`, `EditorController.swift:516`
+- [x] Sidebar button "Toggle sidebar"; toolbar "Add comment", "Comments", "Versions", "Assist", each with count value when non-zero. `EditorController.swift:77`, `ChromeControls.swift:71-74`, `ChromeControls.swift:63`
 - [ ] Sidebar: "Sidebar view" (segmented), "Files" (list), "Refresh folder" (refresh button), rows "<title>, <subtitle>". `Sidebar.swift:107`, `Sidebar.swift:115`, `Sidebar.swift:147`, `Sidebar.swift:378`
 - [ ] Open picker: "Find a draft", "Recent drafts", rows "<title>, <when>". `OpenPicker.swift:41`, `OpenPicker.swift:55`, `OpenPicker.swift:159`
 - [ ] SSH field "SSH location". `RemoteEditing.swift:104`
@@ -949,7 +949,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Comment composer text area "Comment". `CommentComposer.swift:57`
 - [ ] Image previews: role image, label alt text or "Image". `ImageBlocks.swift:101-102`, `ImageBlocks.swift:212`
 - [ ] Preview: bar role toolbar "Version preview"; diff "Version preview" with value and help; position "Version <n> of <total>"; chevrons described by their tooltips. `VersionPreview.swift:78`, `VersionPreview.swift:96`, `VersionPreview.swift:121-122`, `VersionPreview.swift:297`, `VersionPreview.swift:302-303`
-- [ ] Every footer flash is announced (medium priority). `EditorController.swift:495`
+- [x] Every footer flash is announced (medium priority). `EditorController.swift:495`
 - [ ] Opening a version preview is announced. `VersionPreview.swift:185-188`
 - [ ] All animations (chrome fade, scroll, peek, window widen) respect Reduce Motion. `EditorController.swift:604`, `EditorController.swift:634`, `EditorController.swift:683`, `ChromeControls.swift:156`, `ChromeControls.swift:220`, `ChromeControls.swift:240`
 - [ ] VoiceOver text navigation, rotor and keyboard access in standard controls. **(AppKit built-in)**
@@ -962,7 +962,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Dev app name "Fluent Writer Dev" (menus, About, live state), drafts `~/Documents/Fluent Writer Dev`, support `~/Library/Application Support/Fluent Writer Dev`. `WriterCore/AppVariant.swift:15-26`
 - [ ] Dev uses its own bundle id `com.sunkenintime.fluentwriter.dev`, so its user defaults are separate. `script/build-app.sh:17-21`
 - [ ] Dev MCP server name `fluent-writer-dev`. `ConnectAgent.swift:14`
-- [ ] App flag `--open <path>`: opens that file at launch. `main.swift:21-22`
+- [x] App flag `--open <path>`: opens that file at launch. `main.swift:21-22`
 - [ ] Env `FLUENT_WRITER_AGENT_FIXTURE=<file>`: Assist replays that file's text word by word (40 ms per word) instead of calling a provider. `WriterAgents/ClaudeAgent.swift:103-136`
 - [ ] Env `FLUENT_WRITER_CLAUDE_PATH`: path to the Claude Code binary for the bridge (set by the app). `bridge/claude/bridge.mjs:54`, `WriterAgents/ClaudeAgent.swift:41`
 - [ ] Env `FLUENT_WRITER_SSH_TEST_DIR=host:/path` runs the SSH round-trip test (tests only). `README.md:63`
@@ -993,11 +993,11 @@ Things in the code that look like bugs, dead code or mismatches. Listed, not fix
 1. ⌥⌘J is assigned twice: Edit › Find › Jump to Selection (`MainMenu.swift:70`) and Assist › Show Assist (`MainMenu.swift:139`). Which one fires depends on menu order.
 2. The Versions toolbar badge is always set to 0, so it never shows a count, while the tooltip and the tab label do show counts (`ChromeControls.swift:138`).
 3. Empty `if` block with only a comment in title editing (`EditorController.swift:806-808`).
-4. A footer flash sets the status text but returns before `layoutFooter()` (`EditorController.swift:446-450`), so the status label keeps the width of the previous text (`EditorController.swift:265-270`). A long flash can be cut off, and a flash after an empty status (new draft) can be invisible, until something else re-lays out the footer. The transient path also skips updating the label's accessibility value (`EditorController.swift:487`).
+4. A footer flash sets the status text but returns before `layoutFooter()` (`EditorController.swift:446-450`), so the status label keeps the width of the previous text (`EditorController.swift:265-270`). A long flash can be cut off, and a flash after an empty status (new draft) can be invisible, until something else re-lays out the footer. The transient path also skips updating the label's accessibility value (`EditorController.swift:487`). *Rust: fixed; the status width comes from the text shown, and flashes are announced.*
 5. The status tooltip is not cleared for "Edited", "Recovered unsaved changes" or flash messages, so it keeps the last path or error (`EditorController.swift:475-480`).
 6. Format commands (Bold, Italic, headings, lists, Indent…) always edit the main text view, even while a version preview is showing and the draft is hidden, and even when focus is in the title field or the Assist instruction field (`Commands.swift:86-116`). Image insertion beeps during preview (`ImageBlocks.swift:311`); formatting doesn't.
 7. "Use This Version" is disabled when the version equals the draft (`VersionPreview.swift:301`), but Return in the preview (`VersionPreview.swift:16`) and ⌥⌘↩ (`Commands.swift:190`) still use it.
-8. Closing the window runs the leave check in `windowShouldClose` (`EditorController.swift:841-843`), then `windowWillClose` quits, and `applicationShouldTerminate` runs the leave check again (`main.swift:38-42`). With a failing save this can show the "couldn't be saved" alert twice.
+8. Closing the window runs the leave check in `windowShouldClose` (`EditorController.swift:841-843`), then `windowWillClose` quits, and `applicationShouldTerminate` runs the leave check again (`main.swift:38-42`). With a failing save this can show the "couldn't be saved" alert twice. *Rust: fixed; a quit that passed the check doesn't ask again.*
 9. `application(_:open:)` uses only the first URL and does nothing if the editor hasn't been created yet (`main.swift:34-36`). If macOS delivers the open event before `applicationDidFinishLaunching` (launching the app by opening a file), the file would be ignored and a new or recovered draft shown instead. Not verified at runtime.
 10. Leaving a remote file with un-uploaded edits runs `ssh` synchronously on the main thread (`RemoteEditing.swift:194-198`); the UI freezes for up to the 10 s connect timeout plus transfer time.
 11. If saving the current draft fails after a remote file has been fetched, the remote open is dropped with no message (`RemoteEditing.swift:163`).
