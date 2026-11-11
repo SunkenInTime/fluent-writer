@@ -33,6 +33,8 @@ mod window;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod perf_tests;
+#[cfg(test)]
 mod chrome_tests;
 
 use std::path::PathBuf;
