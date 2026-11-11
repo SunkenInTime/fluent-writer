@@ -20,8 +20,9 @@ use crate::ui::{self, Alert};
 /// The accessory view's width and height. `ConnectAgent.swift:46-47`
 const ACCESSORY_W: f32 = 460.0;
 const ACCESSORY_H: f32 = 150.0;
-/// The sheet's width: the accessory and the sheet's 20 pt padding each side.
-const SHEET_W: f32 = ACCESSORY_W + 40.0;
+/// The sheet's width. NSAlert's wide layout put the 64 pt app icon left of a 460 pt text
+/// column; there is no icon here, and the room it took holds the four buttons in one row.
+const SHEET_W: f32 = 580.0;
 
 /// The commands sheet, while it is up. `ConnectAgent.swift:40-66`
 #[derive(Clone, Debug, PartialEq)]
@@ -158,7 +159,9 @@ impl App {
             );
             return;
         };
-        let support = self.library.support_directory().to_path_buf();
+        let support = self.library.support_directory();
+        // The server is started from wherever the agent runs, so it needs the full path.
+        let support = std::path::absolute(support).unwrap_or_else(|_| support.to_path_buf());
         let dev = self.is_dev_build();
         self.assist.connect.sheet =
             Some(Sheet::Commands { claude: claude_command(dev, &server, &support), codex: codex_command(dev, &server, &support), server, support });
@@ -240,7 +243,8 @@ fn block(key: &str, title: &str, command: &str, p: &Palette) -> El {
                 .selectable(true)
                 .selection_color(p.selection)
                 .mt(4.0)
-                .h(46.0),
+                // 46 pt in the Swift; long support paths need more here, so it grows.
+                .min_h(46.0),
         )
 }
 
@@ -264,14 +268,16 @@ pub fn view(s: &App, p: &Palette) -> El {
                     .key("connect-message")
                     .font(ui_font(12.0, false))
                     .color(p.text.alpha(0.75))
-                    .wrap(),
+                    .wrap()
+                    .w(ACCESSORY_W),
             ),
         )
         .child(
             col()
                 .key("connect-accessory")
                 .mt(8.0)
-                .size(ACCESSORY_W, ACCESSORY_H)
+                .w(ACCESSORY_W)
+                .min_h(ACCESSORY_H)
                 .child(block("connect-claude-command", "Claude Code", claude, p))
                 .child(block("connect-codex-command", "Codex", codex, p).mt(8.0)),
         )
