@@ -1,0 +1,154 @@
+//! Settings that persist between launches. The Swift app kept these in `UserDefaults`; here
+//! they live in `preferences.json` in the support directory, under the same key names.
+
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+use writer_core::FocusUnit;
+
+use crate::theme::{Appearance, DEFAULT_TEXT_SIZE};
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct Stored {
+    focus: Option<String>,
+    last_dimming_focus: Option<String>,
+    text_size: Option<f64>,
+    appearance: Option<String>,
+    show_counts: Option<bool>,
+    spell_check: Option<bool>,
+    show_sidebar: Option<bool>,
+    sidebar_mode: Option<String>,
+    folder_local: Option<String>,
+    folder_remote: Option<String>,
+    #[serde(rename = "lastSSHLocation")]
+    last_ssh_location: Option<String>,
+    window_frame: Option<[f64; 4]>,
+}
+
+/// The app's settings, read once at launch and written on every change.
+#[derive(Clone, Debug)]
+pub struct Prefs {
+    path: Option<PathBuf>,
+    stored: Stored,
+}
+
+fn focus_from(raw: Option<&str>) -> Option<FocusUnit> {
+    FocusUnit::ALL.into_iter().find(|u| Some(focus_raw(*u)) == raw)
+}
+
+fn focus_raw(unit: FocusUnit) -> &'static str {
+    match unit {
+        FocusUnit::Off => "off",
+        FocusUnit::Sentence => "sentence",
+        FocusUnit::Paragraph => "paragraph",
+        FocusUnit::Typewriter => "typewriter",
+    }
+}
+
+impl Prefs {
+    /// Settings kept only in memory, for tests and headless runs.
+    pub fn in_memory() -> Prefs {
+        Prefs { path: None, stored: Stored::default() }
+    }
+
+    pub fn load(support_directory: &Path) -> Prefs {
+        let path = support_directory.join("preferences.json");
+        let stored = std::fs::read(&path).ok().and_then(|d| serde_json::from_slice(&d).ok()).unwrap_or_default();
+        Prefs { path: Some(path), stored }
+    }
+
+    fn save(&self) {
+        let Some(path) = &self.path else { return };
+        if let Ok(data) = serde_json::to_vec_pretty(&self.stored) {
+            let _ = writer_core::atomic_file::write(&data, path);
+        }
+    }
+
+    pub fn focus(&self) -> FocusUnit {
+        focus_from(self.stored.focus.as_deref()).unwrap_or(FocusUnit::Off)
+    }
+    pub fn set_focus(&mut self, unit: FocusUnit) {
+        self.stored.focus = Some(focus_raw(unit).into());
+        self.save();
+    }
+
+    /// The dimming mode Toggle Focus returns to when turning focus back on.
+    pub fn last_dimming_focus(&self) -> FocusUnit {
+        focus_from(self.stored.last_dimming_focus.as_deref()).unwrap_or(FocusUnit::Sentence)
+    }
+    pub fn set_last_dimming_focus(&mut self, unit: FocusUnit) {
+        self.stored.last_dimming_focus = Some(focus_raw(unit).into());
+        self.save();
+    }
+
+    pub fn text_size(&self) -> f32 {
+        self.stored.text_size.filter(|v| *v > 0.0).map_or(DEFAULT_TEXT_SIZE, |v| v as f32)
+    }
+    pub fn set_text_size(&mut self, size: f32) {
+        self.stored.text_size = Some(size as f64);
+        self.save();
+    }
+
+    pub fn appearance(&self) -> Appearance {
+        self.stored.appearance.as_deref().and_then(Appearance::from_raw).unwrap_or(Appearance::System)
+    }
+    pub fn set_appearance(&mut self, a: Appearance) {
+        self.stored.appearance = Some(a.raw().into());
+        self.save();
+    }
+
+    pub fn show_counts(&self) -> bool {
+        self.stored.show_counts.unwrap_or(true)
+    }
+    pub fn set_show_counts(&mut self, on: bool) {
+        self.stored.show_counts = Some(on);
+        self.save();
+    }
+
+    pub fn spell_check(&self) -> bool {
+        self.stored.spell_check.unwrap_or(true)
+    }
+    pub fn set_spell_check(&mut self, on: bool) {
+        self.stored.spell_check = Some(on);
+        self.save();
+    }
+
+    pub fn show_sidebar(&self) -> bool {
+        self.stored.show_sidebar.unwrap_or(false)
+    }
+    pub fn set_show_sidebar(&mut self, on: bool) {
+        self.stored.show_sidebar = Some(on);
+        self.save();
+    }
+
+    /// `"recent"` or `"folder"`.
+    pub fn sidebar_mode(&self) -> &str {
+        self.stored.sidebar_mode.as_deref().unwrap_or("recent")
+    }
+    pub fn set_sidebar_mode(&mut self, mode: &str) {
+        self.stored.sidebar_mode = Some(mode.into());
+        self.save();
+    }
+
+    pub fn folder_local(&self) -> Option<&str> {
+        self.stored.folder_local.as_deref()
+    }
+    pub fn folder_remote(&self) -> Option<&str> {
+        self.stored.folder_remote.as_deref()
+    }
+    /// Sets the sidebar's folder: a local path, a remote location's display string, or neither.
+    pub fn set_folder(&mut self, local: Option<String>, remote: Option<String>) {
+        self.stored.folder_local = local;
+        self.stored.folder_remote = remote;
+        self.save();
+    }
+
+    pub fn last_ssh_location(&self) -> &str {
+        self.stored.last_ssh_location.as_deref().unwrap_or("")
+    }
+    pub fn set_last_ssh_location(&mut self, s: &str) {
+        self.stored.last_ssh_location = Some(s.into());
+        self.save();
+    }
+}

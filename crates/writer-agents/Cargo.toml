@@ -1,0 +1,24 @@
+[package]
+name = "writer-agents"
+description = "Fluent Writer's writing agents: Codex app-server and the Claude bridge, prompts and reply parsing."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "writer_agents"
+path = "src/lib.rs"
+
+[dependencies]
+writer-core = { path = "../writer-core" }
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+unicode-segmentation = "1"
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }

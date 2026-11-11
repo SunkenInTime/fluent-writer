@@ -991,6 +991,21 @@ name = "fluent-writer"
 version = "0.1.0"
 dependencies = [
  "rune",
+ "serde",
+ "serde_json",
+ "writer-core",
+]
+
+[[package]]
+name = "fluent-writer-mcp"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dirs",
+ "serde_json",
+ "tempfile",
+ "writer-agents",
+ "writer-core",
 ]
 
 [[package]]
@@ -4287,6 +4302,20 @@ name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
+
+[[package]]
+name = "writer-agents"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "regex",
+ "serde",
+ "serde_json",
+ "unicode-segmentation",
+ "uuid",
+ "windows-sys 0.59.0",
+ "writer-core",
+]
 
 [[package]]
 name = "writer-core"

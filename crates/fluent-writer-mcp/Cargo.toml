@@ -1,0 +1,20 @@
+[package]
+name = "fluent-writer-mcp"
+description = "MCP server (stdio) that lets outside agents read the open Fluent Writer draft and propose changes."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "fluent-writer-mcp"
+path = "src/main.rs"
+
+[dependencies]
+writer-core = { path = "../writer-core" }
+writer-agents = { path = "../writer-agents" }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+dirs = "6"
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

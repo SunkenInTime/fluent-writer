@@ -9,4 +9,7 @@ name = "fluent-writer"
 path = "src/main.rs"
 
 [dependencies]
-rune = { git = "https://github.com/SunkenInTime/rune", rev = "b31433a760e08d7201d009ee0a6d53260cf808c1" }
+rune = { git = "https://github.com/SunkenInTime/rune", rev = "5e610df7c84570d37f9906f926a57d48ecb92a4a" }
+writer-core = { path = "../writer-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
