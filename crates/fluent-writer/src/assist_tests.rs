@@ -422,7 +422,9 @@ fn send_comments_resolves_and_answers_them() {
     let prompt = replying(&mut rt, &reply);
     click(&mut rt, "assist-send-comments");
     assert_eq!(rt.state.notes.assist_tab, AssistTab::Ask, "sending switches to Ask");
-    assert_eq!(rt.state.assist.status, "Codex is reading 2 comments…");
+    // The reply streams from another thread, so by now it may already be drafting.
+    let status = rt.state.assist.status.clone();
+    assert!(status == "Codex is reading 2 comments…" || status == "Drafting edits…", "status {status:?}");
     wait(&mut rt, |s| !s.assist.running);
     assert!(prompt.lock().unwrap().contains("The author's comments. Each one is attached to the quoted text:"));
     let v = &rt.state.notes.versions()[0];
