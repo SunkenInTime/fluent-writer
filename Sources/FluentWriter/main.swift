@@ -41,6 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return editor.confirmLeavingDocument() ? .terminateNow : .terminateCancel
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        editor?.notes.appWillTerminate()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 

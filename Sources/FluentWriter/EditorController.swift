@@ -55,7 +55,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
     let focusLabel = NSTextField(labelWithString: "")
 
     private(set) var focus: FocusUnit = Preferences.focus
-    private var lines: [MarkdownLine] = []
+    private(set) var lines: [MarkdownLine] = []
     private var fenceCount = 0
     private var dimmedFocusRange: NSRange?
     private var saveState: SaveState = .saved
@@ -70,14 +70,22 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
     private var lastKeyboardEdit = false
 
     var sidebar: SidebarController!
-    var sidebarVisible: Bool { sidebar.panel.superview != nil }
-    let sidebarButton = NSButton()
+    /// The sidebar is pinned open (not just peeking over the text).
+    var sidebarVisible: Bool { sidebar.panel.superview != nil && !sidebarPeeking }
+    var sidebarPeeking = false
+    var peekTimer: Timer?
+    let sidebarButton = ChromeButton(symbol: "sidebar.left", label: "Toggle sidebar", tip: "Show or hide the sidebar (⌃⌘S). Point at the left edge to peek.")
+    let toolbar = EditorToolbar()
     let uploader = RemoteUploader()
     var remoteStatus: RemoteStatus = .idle
     var remoteOpenGeneration = 0
 
     var assist: AssistController?
     let assistWidth: CGFloat = 380
+    var notes: NotesController!
+    var preview: VersionPreviewController!
+    var images: ImageBlockController!
+    let composer = CommentComposer()
     var assistVisible: Bool { assist?.panel.superview != nil }
 
     private let storage: NSTextStorage
@@ -107,6 +115,14 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         )
         super.init(window: window)
         sidebar = SidebarController(editor: self, library: library)
+        notes = NotesController(editor: self, supportDirectory: library.supportDirectory)
+        preview = VersionPreviewController(editor: self)
+        images = ImageBlockController(editor: self)
+        notes.onChange = { [weak self] in
+            self?.assist?.refreshLists()
+            self?.preview.refresh()
+            self?.updateToolbarState()
+        }
         configureWindow(window)
         configureTextView()
         uploader.onFinish = { [weak self] doc, body, error in self?.uploadFinished(doc, body: body, error: error) }
@@ -131,7 +147,10 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         if !window.setFrameUsingName("FluentWriterMain") { window.center() }
         window.contentView = canvas
         window.acceptsMouseMovedEvents = true
-        canvas.onMouseMoved = { [weak self] in self?.showChrome(autoHide: true) }
+        canvas.onMouseMoved = { [weak self] in
+            self?.showChrome(autoHide: true)
+            self?.trackSidebarPeek()
+        }
     }
 
     private func configureTextView() {
@@ -161,7 +180,11 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         tv.setAccessibilityLabel("Draft")
         tv.setAccessibilityHelp("The draft text. Use the Format menu or Markdown to style text.")
         tv.onKeyTyping = { [weak self] in self?.userIsTyping() }
-        tv.onMouseSelection = { [weak self] in self?.lastKeyboardEdit = false }
+        tv.onMouseSelection = { [weak self] in
+            self?.lastKeyboardEdit = false
+            self?.endSidebarPeek()
+        }
+        tv.onImagePaste = { [weak self] pb, location in self?.insertImages(from: pb, at: location) ?? false }
         applyTypography()
 
         scrollView.documentView = tv
@@ -193,13 +216,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         titleField.toolTip = "Click to rename"
         topBar.addSubview(titleField)
 
-        sidebarButton.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")
-        sidebarButton.isBordered = false
-        sidebarButton.contentTintColor = Theme.quiet
-        sidebarButton.target = self
-        sidebarButton.action = #selector(toggleFileSidebar(_:))
-        sidebarButton.toolTip = "Show or hide the sidebar (⌃⌘S)"
-        topBar.addSubview(sidebarButton)
+        buildToolbar()
 
         for label in [statusLabel, countsLabel, focusLabel] {
             label.font = Theme.uiFont(size: 12)
@@ -220,25 +237,41 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
 
     @objc func frameChanged() {
         let b = canvas.bounds
-        let panelW: CGFloat = assistVisible ? assistWidth : 0
+        // The panel gives way on narrow windows so the draft keeps a readable column.
+        let panelW: CGFloat = assistVisible ? min(assistWidth, max(260, (b.width * 0.5).rounded())) : 0
         let sideW: CGFloat = sidebarVisible ? min(SidebarController.width, max(0, b.width - panelW - 320)) : 0
         let editorW = b.width - panelW - sideW
-        sidebar.panel.frame = NSRect(x: 0, y: 0, width: sideW, height: b.height)
+        if sidebarPeeking {
+            sidebar.panel.frame = NSRect(x: 0, y: 0, width: SidebarController.width, height: b.height)
+        } else {
+            sidebar.panel.frame = NSRect(x: 0, y: 0, width: sideW, height: b.height)
+        }
         sidebar.layout()
         topBar.frame = NSRect(x: sideW, y: 0, width: editorW, height: Self.topBarHeight)
         footer.frame = NSRect(x: sideW, y: b.height - Self.footerHeight, width: editorW, height: Self.footerHeight)
         scrollView.frame = NSRect(x: sideW, y: Self.topBarHeight, width: editorW, height: b.height - Self.topBarHeight)
         assist?.panel.frame = NSRect(x: sideW + editorW, y: 0, width: panelW, height: b.height)
-        let fullScreen = window?.styleMask.contains(.fullScreen) == true
-        sidebarButton.frame = NSRect(x: sideW > 0 || fullScreen ? 14 : 80, y: 11, width: 20, height: 18)
-        let titleW = min(420, editorW - 180)
-        titleField.frame = NSRect(x: (editorW - titleW) / 2, y: 11, width: titleW, height: 18)
-        let pad: CGFloat = 20
-        let third = (editorW - pad * 2) / 3
-        statusLabel.frame = NSRect(x: pad, y: 9, width: third + 60, height: 16)
-        focusLabel.frame = NSRect(x: pad + third, y: 9, width: third, height: 16)
-        countsLabel.frame = NSRect(x: editorW - pad - third - 60, y: 9, width: third + 60, height: 16)
+        preview?.layout(editorFrame: NSRect(x: sideW, y: Self.topBarHeight, width: editorW, height: b.height - Self.topBarHeight - Self.footerHeight))
+        layoutSidebarButton()
+        updateToolbarState()
+        layoutFooter()
         updateTextLayout()
+    }
+
+    /// Status on the left, counts on the right, focus mode centered only when there's room for it.
+    func layoutFooter() {
+        let editorW = footer.bounds.width
+        let pad: CGFloat = 20
+        func textWidth(_ f: NSTextField) -> CGFloat { f.stringValue.isEmpty || f.isHidden ? 0 : ceil(f.attributedStringValue.size().width) + 4 }
+        let countsW = min(textWidth(countsLabel), editorW * 0.45)
+        countsLabel.frame = NSRect(x: editorW - pad - countsW, y: 9, width: countsW, height: 16)
+        let statusMax = max(0, editorW - pad * 2 - countsW - (countsW > 0 ? 16 : 0))
+        let statusW = min(textWidth(statusLabel), statusMax)
+        statusLabel.frame = NSRect(x: pad, y: 9, width: statusW, height: 16)
+        let focusW = textWidth(focusLabel)
+        let focusX = (editorW - focusW) / 2
+        focusLabel.frame = NSRect(x: focusX, y: 9, width: focusW, height: 16)
+        focusLabel.isHidden = !(focusX > pad + statusW + 12 && focusX + focusW < editorW - pad - countsW - 12)
     }
 
     // MARK: Typography & layout
@@ -252,6 +285,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         textView.caretWidth = max(2, (styler.fontSize / 9).rounded())
         if let storage = textView.textStorage {
             styler.style(storage, lines: lines, in: nil)
+            images?.update(lines: lines)
         }
         refreshFocus(force: true)
     }
@@ -277,6 +311,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         textView.minSize = NSSize(width: visible.width, height: visible.height)
         textView.setFrameSize(NSSize(width: visible.width, height: textView.frame.height))
         textView.sizeToFit()
+        images?.update(lines: lines)
         textView.setSelectedRange(anchor)
         if focus.centersCaret { centerCaret(animated: false) }
     }
@@ -284,6 +319,8 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
     // MARK: Documents
 
     func load(_ doc: DraftDocument) {
+        notes?.flushSave()
+        preview?.close()
         loadingDocument = true
         draft = doc
         textView.string = doc.body
@@ -312,6 +349,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
             if self.focus.centersCaret { self.centerCaret(animated: false) }
             else { self.ensureCaretReadable(animated: false) }
         }
+        notes.documentLoaded()
         assist?.documentChanged()
         sidebar?.currentDocumentChanged()
         window?.representedURL = doc.remote == nil ? doc.url : nil
@@ -401,6 +439,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         }
         window?.title = draft.title
         window?.representedURL = draft.remote == nil ? draft.url : nil
+        notes?.syncPath()
     }
 
     func updateStatus() {
@@ -446,6 +485,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
             showChrome(autoHide: false)
         }
         statusLabel.setAccessibilityValue(statusLabel.stringValue)
+        layoutFooter()
     }
 
     func flashMessage(_ message: String) {
@@ -474,6 +514,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         }
         countsLabel.stringValue = TextStats.format(total, selection: selection)
         countsLabel.setAccessibilityValue(countsLabel.stringValue)
+        layoutFooter()
     }
 
     func scheduleCounts() {
@@ -491,16 +532,19 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         fenceCount = fences
         guard let storage = textView.textStorage else { return }
         styler.style(storage, lines: lines, in: (full || fenceChanged) ? nil : edited)
+        images?.update(lines: lines)
     }
 
     func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters) else { return }
-        assist?.noteEdit(editedRange: editedRange, changeInLength: delta)
+        notes.noteEdit(editedRange: editedRange, changeInLength: delta)
         // Attribute changes here are safe; styling is deferred to stay out of the edit transaction.
         let range = editedRange
         DispatchQueue.main.async { [weak self] in
             self?.reparse(full: false, edited: range)
             self?.refreshFocus(force: true)
+            self?.notes.reanchorDetached()
+            self?.notes.refreshHighlights()
         }
     }
 
@@ -516,6 +560,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         refreshFocus(force: true)
         if unit.centersCaret { centerCaret(animated: !reduceMotion) }
         focusLabel.stringValue = unit == .off ? "" : focusName(unit)
+        layoutFooter()
         flashMessage(unit == .off ? "Focus off" : "\(focusName(unit)) focus")
     }
 
@@ -545,6 +590,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         let range = currentFocusRange()
         if !force && range == dimmedFocusRange { return }
         dimmedFocusRange = range
+        images?.applyDimming(range)
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
         guard let range else { return }
         let before = NSRange(location: 0, length: range.location)
@@ -633,7 +679,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
     }
 
     private func animateChrome(to alpha: CGFloat) {
-        let views: [NSView] = [titleField, statusLabel, countsLabel, focusLabel, sidebarButton] + (sidebarVisible ? [] : trafficLights())
+        let views: [NSView] = [titleField, statusLabel, countsLabel, focusLabel, sidebarButton] + toolbar.all + (sidebarVisible ? [] : trafficLights())
         let duration = reduceMotion ? 0 : (alpha > 0 ? 0.25 : 0.6)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = duration
@@ -673,6 +719,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         refreshFocus()
         scheduleCounts()
         assist?.selectionChanged()
+        notes.scheduleLiveState()
         let event = NSApp.currentEvent?.type
         if event == .keyDown && focus.centersCaret {
             DispatchQueue.main.async { [weak self] in self?.centerCaret(animated: true) }
@@ -704,6 +751,7 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
                 return true
             }
         case #selector(NSResponder.cancelOperation(_:)):
+            if notes.activeCommentID != nil { notes.activeCommentID = nil; assist?.refreshLists(); return true }
             if assistVisible { assist?.close(); return true }
         default:
             break
@@ -721,6 +769,21 @@ final class EditorController: NSWindowController, NSWindowDelegate, NSTextViewDe
         let s = edit.selectionAfter
         textView.setSelectedRange(NSRange(location: min(s.location, len), length: min(s.length, max(0, len - s.location))))
         textView.typingAttributes = styler.baseAttributes
+    }
+
+    func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
+        var items = [NSMenuItem(title: textView.selectedRange().length > 0 ? "Comment on Selection…" : "Comment on This Line…",
+                                action: #selector(addComment(_:)), keyEquivalent: "")]
+        if let c = notes.comment(at: charIndex) {
+            notes.activeCommentID = c.id
+            items.append(NSMenuItem(title: "Show Comment", action: #selector(showComments(_:)), keyEquivalent: ""))
+        }
+        items.append(.separator())
+        for (i, item) in items.enumerated() {
+            item.target = self
+            menu.insertItem(item, at: i)
+        }
+        return menu
     }
 
     // MARK: Title editing

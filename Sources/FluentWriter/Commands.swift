@@ -156,6 +156,7 @@ extension EditorController: NSMenuItemValidation {
     @objc func toggleCounts(_ sender: Any?) {
         Preferences.showCounts.toggle()
         countsLabel.isHidden = !Preferences.showCounts
+        layoutFooter()
     }
 
     @objc func toggleSpellCheck(_ sender: Any?) {
@@ -183,6 +184,10 @@ extension EditorController: NSMenuItemValidation {
             item.title = textView.selectedRange().length > 0 ? "Copy Selection for Twitter" : "Copy for Twitter"
             return !textView.string.isEmpty
         case #selector(openAssist(_:)), #selector(askCodex(_:)), #selector(askClaude(_:)): return !textView.string.isEmpty
+        case #selector(addComment(_:)): return !textView.string.isEmpty
+        case #selector(previousVersion(_:)): return !notes.versions.isEmpty
+        case #selector(nextVersion(_:)): return preview.isActive
+        case #selector(useShownVersion(_:)): return preview.isActive
         default: break
         }
         return true

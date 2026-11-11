@@ -63,6 +63,12 @@ public enum PlainTextExporter {
 
         let codeRanges = spans.filter { $0.kind == .code }.map { $0.range }
         for span in spans where span.kind == .link {
+            // Images don't survive as plain text.
+            if ns.character(at: span.range.location) == 0x21 {
+                replacements.append((span.range, ""))
+                claimed.append(span.range)
+                continue
+            }
             let label = renderInlineFragment(ns.substring(with: span.contentRange))
             let url = span.urlRange.map { ns.substring(with: $0) } ?? ""
             let trimmedLabel = label.trimmingCharacters(in: .whitespaces)

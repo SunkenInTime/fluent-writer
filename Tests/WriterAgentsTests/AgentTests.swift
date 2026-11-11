@@ -1,50 +1,81 @@
 import XCTest
 @testable import WriterAgents
+import WriterCore
 
 final class AgentPromptTests: XCTestCase {
-    func testPromptIncludesScopeAndFormat() {
-        let req = AgentRequest(provider: .codex, action: .shorten, instruction: "keep it casual", scopeText: "Hello world.", isSelection: true, title: "Note")
+    func testPromptSendsWholeDraftWithSelectionAsFocus() {
+        let req = AgentRequest(provider: .codex, action: .shorten, instruction: "keep it casual", document: "Intro.\n\nHello world.", selection: "Hello world.", title: "Note")
         let p = AgentPrompt.build(req)
-        XCTAssertTrue(p.contains("a passage selected from a draft"))
-        XCTAssertTrue(p.contains("<revision>"))
+        XCTAssertTrue(p.contains("<draft>\nIntro.\n\nHello world.\n</draft>"))
+        XCTAssertTrue(p.contains("<selection>\nHello world.\n</selection>"))
+        XCTAssertTrue(p.contains("<edit at=\"end\">"))
         XCTAssertTrue(p.contains("keep it casual"))
-        XCTAssertTrue(p.contains("<text>\nHello world.\n</text>"))
         XCTAssertTrue(p.contains("Do not run commands"))
     }
 
-    func testCritiqueDoesNotAskForRevision() {
-        let req = AgentRequest(provider: .claude, action: .critique, instruction: "", scopeText: "x", isSelection: false, title: "")
+    func testCritiqueDoesNotAskForEdits() {
+        let req = AgentRequest(provider: .claude, action: .critique, instruction: "", document: "x", title: "")
         let p = AgentPrompt.build(req)
-        XCTAssertFalse(p.contains("<revision>"))
-        XCTAssertTrue(p.contains("a complete draft"))
+        XCTAssertFalse(p.contains("<old>"))
+        XCTAssertTrue(p.contains("Do not include any edits."))
     }
 
-    func testParseFeedbackAndRevision() {
-        let r = AgentPrompt.parse("<feedback>\nTighter now.\n</feedback>\n<revision>\nShort line.\n\nSecond.\n</revision>")
+    func testCommentsAndHistoryAreIncluded() {
+        let req = AgentRequest(provider: .codex, action: .resolveComments, instruction: "", document: "A b c.", title: "",
+                               comments: [PromptComment(id: "c1", quote: "b", body: "make bolder")],
+                               history: [(instruction: "add a line", feedback: "Added.")])
+        let p = AgentPrompt.build(req)
+        XCTAssertTrue(p.contains("<comment id=\"c1\">"))
+        XCTAssertTrue(p.contains("make bolder"))
+        XCTAssertTrue(p.contains("<edit for=\"COMMENT_ID\">"))
+        XCTAssertTrue(p.contains("Author asked: add a line"))
+    }
+
+    func testParseFeedbackEditsAndReplies() {
+        let out = """
+        <feedback>
+        Tighter now.
+        </feedback>
+        <edit for="c1">
+        <old>Long line here.</old>
+        <new>Short line.</new>
+        </edit>
+        <edit at="end">
+        <new>
+        A closing thought.
+        </new>
+        </edit>
+        <reply for="c2">It reads fine to me.</reply>
+        """
+        let r = AgentPrompt.parse(out)
         XCTAssertEqual(r.feedback, "Tighter now.")
-        XCTAssertEqual(r.revision, "Short line.\n\nSecond.")
+        XCTAssertEqual(r.edits, [
+            ProposedEdit(old: "Long line here.", new: "Short line.", commentIDs: ["c1"]),
+            ProposedEdit(old: nil, new: "A closing thought.", position: .end),
+        ])
+        XCTAssertEqual(r.replies, ["c2": "It reads fine to me."])
     }
 
-    func testParseStreamingPartialRevisionIsWithheld() {
-        let r = AgentPrompt.parse("<feedback>Good.</feedback>\n<revision>\nHalf a sen")
+    func testParseStreamingPartialEditIsWithheld() {
+        let r = AgentPrompt.parse("<feedback>Good.</feedback>\n<edit>\n<old>Half</old>\n<new>a sen")
         XCTAssertEqual(r.feedback, "Good.")
-        XCTAssertNil(r.revision)
+        XCTAssertTrue(r.edits.isEmpty)
+        XCTAssertTrue(AgentPrompt.isDraftingEdits("<feedback>Good.</feedback>\n<edit>"))
     }
 
     func testParsePartialFeedback() {
-        let r = AgentPrompt.parse("<feedback>\nThe opening is")
-        XCTAssertEqual(r.feedback, "The opening is")
+        XCTAssertEqual(AgentPrompt.parse("<feedback>\nThe opening is").feedback, "The opening is")
     }
 
     func testParseUntaggedFallsBackToFeedback() {
         let r = AgentPrompt.parse("Just some notes.")
         XCTAssertEqual(r.feedback, "Just some notes.")
-        XCTAssertNil(r.revision)
+        XCTAssertTrue(r.edits.isEmpty)
     }
 
-    func testEmptyRevisionIsNil() {
-        let r = AgentPrompt.parse("<feedback>Fine as is.</feedback><revision>\n</revision>")
-        XCTAssertNil(r.revision)
+    func testEmptyNewIsADeletion() {
+        let r = AgentPrompt.parse("<feedback>Cut it.</feedback><edit><old>Remove me.</old><new></new></edit>")
+        XCTAssertEqual(r.edits, [ProposedEdit(old: "Remove me.", new: "")])
     }
 }
 

@@ -47,6 +47,7 @@ extension EditorController {
     // MARK: Sidebar
 
     @objc func toggleFileSidebar(_ sender: Any?) {
+        if sidebarPeeking { pinPeekingSidebar(); return }
         if sidebarVisible {
             sidebar.panel.removeFromSuperview()
         } else {
@@ -57,6 +58,7 @@ extension EditorController {
         trafficLightButtons.forEach { $0.alphaValue = 1 }
         showChrome(autoHide: true)
         frameChanged()
+        updateToolbarState()
     }
 
     func showSidebar(_ mode: SidebarController.Mode) {
