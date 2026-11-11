@@ -37,8 +37,9 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .fill(p.canvas)
         .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
         .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
-        .child(draft(s, &p, cx).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
+        .child(draft(s, &p, cx).absolute(f.editor_x(), s.draft_top()).size(w, (h - s.draft_top()).max(0.0)))
         .child(crate::version_preview::view(s, &p))
+        .child(crate::find::view(s, &p, &f))
         .child(top_bar)
         .child(footer(s, &p, chrome, fade))
         .child(crate::comment_composer::view(s, &p))
@@ -62,6 +63,7 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
         .spans(styled.spans)
         .paragraph_blocks(styled.blocks)
         .input_strikes(styled.strikes)
+        .text_highlights(crate::find::highlights(s, p))
         .spellcheck(s.prefs.spell_check())
         .w_full()
         .min_h(vh)
@@ -88,7 +90,8 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
         })
         .on_layout(|s: &mut App, r| s.field_rect = r);
     let page = el().w_full().child(field).children(crate::images::view(s, p, cx));
-    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(page)
+    // The draft's menu offers Check Spelling While Typing, as the text view's Spelling submenu did.
+    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).on_spellcheck(s.prefs.spell_check(), |s: &mut App, on, _| s.prefs.set_spell_check(on)).child(page)
 }
 
 /// Status on the left, counts on the right, focus mode centred only when there's room for it.

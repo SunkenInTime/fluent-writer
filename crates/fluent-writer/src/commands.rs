@@ -1,7 +1,7 @@
 //! Every command the menus offer: its title, where it sits, its shortcut, when it is enabled
 //! or checked, and what it does. The menu bar, the key handler and the toolbar all go through here.
 
-use rune::{Chord, KeyEvent, Tx};
+use rune::{Chord, Key, KeyEvent, Tx};
 use writer_core::{FocusUnit, LinePrefix, plain_text_exporter, text_editing, text_stats};
 
 use crate::app::{App, focus_name};
@@ -275,6 +275,20 @@ pub fn command_for(ev: &KeyEvent, tx: &Tx) -> Option<Command> {
     found
 }
 
+/// The key a focused field takes for a standard Edit item: (shift, key).
+fn field_key(command: Command) -> Option<(bool, Key)> {
+    Some(match command {
+        C::Undo => (false, Key::Command('z')),
+        C::Redo => (true, Key::Command('z')),
+        C::Cut => (false, Key::Command('x')),
+        C::Copy => (false, Key::Command('c')),
+        C::Paste => (false, Key::Command('v')),
+        C::SelectAll => (false, Key::Command('a')),
+        C::Delete => (false, Key::Delete),
+        _ => return None,
+    })
+}
+
 impl App {
     /// The title a menu shows for `command` right now, where it changes with state.
     pub fn command_title(&self, command: Command, fallback: &'static str) -> String {
@@ -316,8 +330,28 @@ impl App {
             C::AppearanceDark => self.prefs.appearance() == Appearance::Dark,
             C::ToggleCounts => self.prefs.show_counts(),
             C::ToggleSpellCheck => self.prefs.spell_check(),
+            C::SmartQuotes => self.prefs.smart_quotes(),
+            C::SmartDashes => self.prefs.smart_dashes(),
+            C::TextReplacement => self.prefs.text_replacement(),
             _ => false,
         }
+    }
+
+    /// Runs a command picked from a menu. The standard Edit items act on whichever text field
+    /// has the keyboard, as AppKit's do through the responder chain: they reach it as their
+    /// keys. With nothing focused they act on the draft.
+    pub fn run_menu(&mut self, command: Command, tx: &mut Tx) {
+        if let Some(focused) = tx.focused().map(str::to_owned)
+            && focused != crate::app::DRAFT
+            && let Some(key) = field_key(command)
+        {
+            let (shift, key) = key;
+            let mac = cfg!(target_os = "macos");
+            let mods = if key == Key::Delete { rune::Mods::default() } else { rune::Mods { cmd: true, ctrl: !mac, logo: mac, shift, alt: false } };
+            tx.send_key(KeyEvent { key, mods });
+            return;
+        }
+        self.run(command, tx);
     }
 
     /// Runs a command, unless it is disabled.
@@ -375,6 +409,7 @@ impl App {
                 }
             }
             C::Delete => {
+                // AppKit's Delete removes the selection only.
                 if !sel.is_empty() {
                     self.edit.insert("");
                     self.text_did_change(tx);
@@ -384,6 +419,24 @@ impl App {
             C::SelectAll => {
                 let len = self.edit.text.len();
                 self.edit.set_selection(0, len);
+            }
+            C::Find => crate::find::show(self, false, tx),
+            C::FindAndReplace => crate::find::show(self, true, tx),
+            C::FindNext => crate::find::step(self, true, tx),
+            C::FindPrevious => crate::find::step(self, false, tx),
+            C::UseSelectionForFind => crate::find::use_selection(self),
+            C::JumpToSelection => crate::find::jump_to_selection(tx),
+            C::SmartQuotes => {
+                let on = !self.prefs.smart_quotes();
+                self.prefs.set_smart_quotes(on);
+            }
+            C::SmartDashes => {
+                let on = !self.prefs.smart_dashes();
+                self.prefs.set_smart_dashes(on);
+            }
+            C::TextReplacement => {
+                let on = !self.prefs.text_replacement();
+                self.prefs.set_text_replacement(on);
             }
             C::Bold => self.apply(&text_editing::toggle("**", text, sel), tx),
             C::Italic => self.apply(&text_editing::toggle("*", text, sel), tx),

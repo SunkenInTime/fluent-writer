@@ -87,6 +87,9 @@ pub struct Palette {
     pub card_selected: Color,
     pub icon: Color,
     pub banner: Color,
+    /// Find bar matches in the draft, and the current match.
+    pub find_match: Color,
+    pub find_current: Color,
 }
 
 impl Palette {
@@ -118,6 +121,8 @@ impl Palette {
             card_selected: pick(rgb(234, 246, 253), rgb(26, 54, 70)),
             icon: pick(rgb(120, 118, 116), rgb(172, 172, 170)),
             banner: pick(rgb(238, 238, 236), rgb(36, 36, 36)),
+            find_match: pick(rgba(0, 190, 255, 0.16), rgba(0, 175, 245, 0.22)),
+            find_current: pick(rgba(0, 190, 255, 0.34), rgba(0, 175, 245, 0.42)),
         }
     }
 }

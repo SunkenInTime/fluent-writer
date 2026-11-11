@@ -15,6 +15,9 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         return true;
     }
     s.user_is_typing();
+    if crate::editing::draft_key(s, ev, tx) || crate::substitutions::on_typed(s, ev, tx) {
+        return true;
+    }
     let (a, b) = s.edit.range();
     let sel = a.min(b)..a.max(b);
     let plain = !ev.mods.cmd && !ev.mods.ctrl && !ev.mods.alt;
@@ -36,6 +39,10 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
 pub fn window_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if s.preview.is_active() {
         return crate::version_preview::preview_key(s, ev, tx);
+    }
+    if ev.key == Key::Escape && s.find.visible {
+        crate::find::close(s, tx);
+        return true;
     }
     match crate::commands::command_for(ev, tx) {
         Some(command) => {
