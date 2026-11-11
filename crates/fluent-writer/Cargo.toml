@@ -1,0 +1,12 @@
+[package]
+name = "fluent-writer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "fluent-writer"
+path = "src/main.rs"
+
+[dependencies]
+rune = { git = "https://github.com/SunkenInTime/rune", rev = "b31433a760e08d7201d009ee0a6d53260cf808c1" }

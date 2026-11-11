@@ -4,3 +4,6 @@ build/
 .swiftpm/
 bridge/claude/node_modules/
 .DS_Store
+
+/target
+/.cargo/config.toml
