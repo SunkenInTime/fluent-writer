@@ -74,6 +74,7 @@ pub struct App {
     pub remote: Remote,
     pub assist_visible: bool,
     pub notes: crate::notes::Notes,
+    pub assist: crate::assist::Assist,
     pub composer: crate::comment_composer::Composer,
     pub preview: crate::version_preview::Preview,
     pub library: DraftLibrary,
@@ -152,6 +153,7 @@ impl App {
             remote: Remote::new(),
             assist_visible: false,
             notes: crate::notes::Notes::new(library.support_directory()),
+            assist: crate::assist::Assist::new(prefs.assist_provider()),
             composer: Default::default(),
             preview: Default::default(),
             library,
@@ -200,7 +202,8 @@ impl App {
         self.images.setup(waker.clone());
         self.notes.set_waker(waker.clone());
         self.sidebar.set_waker(waker.clone());
-        self.remote.set_waker(waker);
+        self.remote.set_waker(waker.clone());
+        self.assist.set_waker(waker);
     }
 
     // MARK: Layout
@@ -270,6 +273,7 @@ impl App {
         self.notes_document_loaded();
         self.remote.status = RemoteStatus::Idle;
         self.sidebar_document_changed();
+        self.assist_document_changed();
     }
 
     pub fn sync_document_from_view(&mut self) {
@@ -587,6 +591,7 @@ impl App {
         }
         self.last_caret = tx.caret(DRAFT);
         changed |= self.notes_poll(tx);
+        changed |= self.assist_poll(tx);
         changed
     }
 

@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 rune = { git = "https://github.com/SunkenInTime/rune", features = ["native-file-dialog"], rev = "9d0483543f0442d2efbf6bea4969826d868ae2c4" }
 writer-core = { path = "../writer-core" }
+writer-agents = { path = "../writer-agents" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
