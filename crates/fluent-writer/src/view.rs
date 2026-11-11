@@ -70,7 +70,7 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
     let c = s.column();
     let (vw, vh) = s.visible();
     let m = &s.metrics;
-    let mut styled = styler::style(&s.edit.text, &s.lines, m, p, &|line| s.images.space_after(line, s.image_gap()));
+    let mut styled = styler::style(&s.edit.text, s.lines(), m, p, &|line| s.images.space_after(line, s.image_gap()));
     if let Some(focus) = s.focus_range() {
         styled.spans.extend(styler::dimming(s.edit.text.len(), &focus, p));
     }
@@ -89,6 +89,9 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
         .spellcheck(s.prefs.spell_check())
         .w_full()
         .min_h(vh)
+        // The field is as wide as the editor anyway. Without this, every edit would also lay
+        // the whole draft out at its min-content width, one word per line.
+        .min_w(0.0)
         .pl(c.inset_x)
         .pr((vw - c.inset_x - c.width).max(0.0))
         .pt(c.inset_y)

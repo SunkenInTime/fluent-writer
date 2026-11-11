@@ -281,7 +281,7 @@ impl App {
     pub fn refresh_images(&mut self) {
         let base = self.draft.path().and_then(Path::parent).map(Path::to_path_buf).unwrap_or_else(|| self.library.drafts_directory().to_path_buf());
         let room = self.image_room();
-        self.images.update(&self.edit.text, &self.lines, &base, self.draft.remote().is_some(), room);
+        self.images.update(&self.edit.text, self.parsed.lines(), &base, self.draft.remote().is_some(), room);
     }
 
     /// Invisible highlights over each image line, so the view can read where the line sits.

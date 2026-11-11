@@ -202,6 +202,7 @@ impl App {
     /// `AssistController.swift:446-468`
     pub fn assist_refresh_scope(&mut self) {
         let name = self.assist.provider.display_name();
+        let total = if self.preview.version_id().is_none() && !self.edit.text.is_empty() { self.draft_total_counts().words } else { 0 };
         let a = &mut self.assist;
         if let Some(v) = self.preview.version_id().and_then(|id| self.notes.version(id)) {
             let words = text_stats::counts_for_markdown(&v.body).words;
@@ -217,7 +218,6 @@ impl App {
         }
         let (x, y) = self.edit.range();
         let sel = x.min(y)..x.max(y).min(text.len());
-        let total = text_stats::counts_for_markdown(text).words;
         let selected = if sel.is_empty() { 0 } else { text.get(sel).map_or(0, |s| text_stats::counts_for_markdown(s).words) };
         if selected > 0 {
             a.scope = format!("Draft · focus on {} → {name}", plural(selected, "selected word", "selected words"));
