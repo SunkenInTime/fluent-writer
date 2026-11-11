@@ -6,3 +6,7 @@ members = ["crates/*"]
 edition = "2024"
 license = "MIT"
 version = "0.1.0"
+
+# The UI framework and the other dependencies are too slow to type into unoptimized.
+[profile.dev.package."*"]
+opt-level = 2

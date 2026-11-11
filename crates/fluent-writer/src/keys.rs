@@ -7,6 +7,10 @@ use crate::app::App;
 
 /// Return continues lists, Tab and Shift-Tab indent them. Every key hides the chrome.
 pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if let Some(command) = crate::commands::command_for(ev, tx) {
+        s.run(command, tx);
+        return true;
+    }
     s.user_is_typing();
     let (a, b) = s.edit.range();
     let sel = a.min(b)..a.max(b);
@@ -19,6 +23,17 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     match edit {
         Some(edit) => {
             s.apply(&edit, tx);
+            true
+        }
+        None => false,
+    }
+}
+
+/// Keys that reach the window: shortcuts while nothing has focus, or that a field passed on.
+pub fn window_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    match crate::commands::command_for(ev, tx) {
+        Some(command) => {
+            s.run(command, tx);
             true
         }
         None => false,

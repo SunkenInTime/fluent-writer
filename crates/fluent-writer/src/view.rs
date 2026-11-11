@@ -9,12 +9,15 @@ use crate::theme::{Palette, draft_font, ui_font};
 
 pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     let p = Palette::new(s.prefs.appearance().is_dark(cx.system_dark()));
-    let (w, h) = s.window;
+    // Reading the caret here keeps Rune tracking it, which `App::poll` scrolls by.
+    let _ = cx.caret(DRAFT);
+    let f = s.frame();
+    let (w, h) = (f.editor_w, f.height);
     let chrome = if s.chrome_visible { 1.0 } else { 0.0 };
     // Chrome comes back quickly and leaves slowly.
     let fade = Spring::new(if s.chrome_visible { 0.25 } else { 0.6 }, 0.0);
 
-    let top_bar = el().key("top-bar").absolute(0.0, 0.0).size(w, TOP_BAR_HEIGHT).fill(p.canvas).child(
+    let top_bar = el().key("top-bar").absolute(f.editor_x(), 0.0).size(w, TOP_BAR_HEIGHT).fill(p.canvas).child(
         text(s.shown_title())
             .key("title")
             .font(ui_font(13.0, false))
@@ -34,14 +37,14 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .fill(p.canvas)
         .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
         .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
-        .child(draft(s, &p).absolute(0.0, TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
+        .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
         .child(top_bar)
         .child(footer(s, &p, chrome, fade))
 }
 
 fn draft(s: &App, p: &Palette) -> El {
     let c = s.column();
-    let (_, vh) = s.visible();
+    let (vw, vh) = s.visible();
     let m = &s.metrics;
     let mut styled = styler::style(&s.edit.text, &s.lines, m, p, &|_| 0.0);
     if let Some(focus) = s.focus_range() {
@@ -57,7 +60,12 @@ fn draft(s: &App, p: &Palette) -> El {
         .paragraph_blocks(styled.blocks)
         .input_strikes(styled.strikes)
         .spellcheck(s.prefs.spell_check())
-        .w(c.width)
+        .w_full()
+        .min_h(vh)
+        .pl(c.inset_x)
+        .pr((vw - c.inset_x - c.width).max(0.0))
+        .pt(c.inset_y)
+        .pb(c.inset_y + c.bottom_overscroll)
         .on_edit(|s: &mut App| &mut s.edit)
         .on_input_change(|s: &mut App, tx| s.text_did_change(tx))
         .on_input_key(crate::keys::draft_key)
@@ -66,19 +74,13 @@ fn draft(s: &App, p: &Palette) -> El {
             s.text_did_change(tx);
         })
         .on_layout(|s: &mut App, r| s.field_rect = r);
-    let page = col()
-        .w_full()
-        .min_h(vh)
-        .pl(c.inset_x)
-        .pt(c.inset_y)
-        .pb(c.inset_y + c.bottom_overscroll)
-        .child(field);
-    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(page)
+    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(field)
 }
 
 /// Status on the left, counts on the right, focus mode centred only when there's room for it.
 fn footer(s: &App, p: &Palette, chrome: f32, fade: Spring) -> El {
-    let (w, h) = s.window;
+    let f = s.frame();
+    let (w, h) = (f.editor_w, f.height);
     let font = ui_font(12.0, false);
     let cw = 12.0 * crate::theme::CHARACTER_WIDTH_EM;
     let width = |t: &str| if t.is_empty() { 0.0 } else { (t.chars().count() as f32 * cw).ceil() + 4.0 };
@@ -97,7 +99,7 @@ fn footer(s: &App, p: &Palette, chrome: f32, fade: Spring) -> El {
     let label = |key: &str, t: &str, x: f32, width: f32, align: Align| {
         text(t).key(key).font(font).color(p.quiet).align(align).truncate().absolute(x, 9.0).size(width, 16.0).opacity(chrome).opacity_motion(fade)
     };
-    let mut bar = el().key("footer").absolute(0.0, h - FOOTER_HEIGHT).size(w, FOOTER_HEIGHT).fill(p.canvas);
+    let mut bar = el().key("footer").absolute(f.editor_x(), h - FOOTER_HEIGHT).size(w, FOOTER_HEIGHT).fill(p.canvas);
     if !status.is_empty() {
         bar = bar.child(label("status", &status, pad, status_w, Align::Start).color(if warning { p.warning } else { p.quiet }).label("Save status"));
     }

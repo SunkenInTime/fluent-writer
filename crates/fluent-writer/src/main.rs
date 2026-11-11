@@ -1,11 +1,16 @@
 //! Fluent Writer: a quiet writing app built around focus.
 
 mod app;
+mod commands;
 mod keys;
+mod platform;
 mod prefs;
 mod styler;
 mod theme;
 mod view;
+
+#[cfg(test)]
+mod tests;
 
 use std::path::PathBuf;
 
@@ -65,6 +70,7 @@ fn main() {
         families: (theme::FONT_FAMILY, theme::FONT_FAMILY),
         min_size: Some((420.0, 320.0)),
         poll: Some(|s, clock, tx| s.poll(clock, tx)),
+        on_key: Some(keys::window_key),
         ..AppSpec::new("Fluent Writer", (1060.0, 760.0), init, view::view)
     });
 }

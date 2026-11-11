@@ -35,7 +35,35 @@ pub struct Column {
     pub bottom_overscroll: f32,
 }
 
+/// How the window divides, left to right: sidebar, editor, Assist panel.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Frame {
+    pub width: f32,
+    pub height: f32,
+    /// Width the pinned sidebar takes from the editor (0 when hidden or only peeking).
+    pub side_w: f32,
+    pub editor_w: f32,
+    pub panel_w: f32,
+}
+
+impl Frame {
+    pub fn editor_x(&self) -> f32 {
+        self.side_w
+    }
+    pub fn panel_x(&self) -> f32 {
+        self.side_w + self.editor_w
+    }
+}
+
+pub const SIDEBAR_WIDTH: f32 = 260.0;
+pub const ASSIST_WIDTH: f32 = 380.0;
+
 pub struct App {
+    /// The sidebar is pinned open (not just peeking over the text).
+    pub sidebar_visible: bool,
+    /// The sidebar is showing over the text because the pointer is at the left edge.
+    pub sidebar_peeking: bool,
+    pub assist_visible: bool,
     pub library: DraftLibrary,
     pub draft: DraftDocument,
     pub edit: TextEdit,
@@ -50,7 +78,8 @@ pub struct App {
     pub chrome_visible: bool,
     /// The window's size in points.
     pub window: (f32, f32),
-    /// The draft field's rect in window points, after scrolling.
+    /// The draft field's rect in window points, after scrolling. The field is the whole page:
+    /// its padding holds the column in place.
     pub field_rect: [f32; 4],
     pub pointer: (f32, f32),
 
@@ -62,7 +91,8 @@ pub struct App {
     chrome_hide_at: Option<f64>,
     transient_until: Option<f64>,
     last_selection: (usize, usize),
-    last_caret: Option<[f32; 4]>,
+    /// The caret line in window points as last drawn, when the draft has the keyboard.
+    pub last_caret: Option<[f32; 4]>,
     /// Bring the caret back to its reading position once the next frame has drawn it:
     /// `Some(animated)`.
     recenter: Option<bool>,
@@ -89,6 +119,9 @@ fn due(at: &mut Option<f64>, now: f64) -> bool {
 impl App {
     pub fn new(library: DraftLibrary, prefs: Prefs, document: DraftDocument) -> App {
         let mut app = App {
+            sidebar_visible: prefs.show_sidebar(),
+            sidebar_peeking: false,
+            assist_visible: false,
             library,
             draft: document.clone(),
             edit: TextEdit::new(""),
@@ -122,9 +155,18 @@ impl App {
 
     // MARK: Layout
 
-    /// The editor area's size: the window less the top bar. The footer lies over its bottom.
+    pub fn frame(&self) -> Frame {
+        let (width, height) = self.window;
+        // The panel gives way on narrow windows so the draft keeps a readable column.
+        let panel_w = if self.assist_visible { ASSIST_WIDTH.min((width * 0.5).round().max(260.0)) } else { 0.0 };
+        let side_w = if self.sidebar_visible && !self.sidebar_peeking { SIDEBAR_WIDTH.min((width - panel_w - 320.0).max(0.0)) } else { 0.0 };
+        Frame { width, height, side_w, editor_w: width - panel_w - side_w, panel_w }
+    }
+
+    /// The editor area's size: its share of the window less the top bar. The footer lies over
+    /// its bottom.
     pub fn visible(&self) -> (f32, f32) {
-        (self.window.0, (self.window.1 - TOP_BAR_HEIGHT).max(0.0))
+        (self.frame().editor_w, (self.window.1 - TOP_BAR_HEIGHT).max(0.0))
     }
 
     pub fn column(&self) -> Column {
@@ -283,17 +325,36 @@ impl App {
         }
     }
 
+    pub fn set_text_size(&mut self, size: f32, tx: &mut Tx) {
+        self.prefs.set_text_size(size);
+        self.metrics = Metrics::new(size);
+        self.recenter = Some(false);
+        self.recenter_delay = 1;
+        self.flash_message(format!("Text size {} pt", size as i32), tx);
+    }
+
+    pub fn new_draft(&mut self, tx: &mut Tx) {
+        if self.draft.is_empty_untitled() {
+            tx.focus(DRAFT, false);
+            return;
+        }
+        if !self.flush() {
+            return;
+        }
+        let doc = self.library.new_draft();
+        self.load(doc);
+    }
+
     // MARK: Scrolling
 
     /// The scroll viewport's offset, worked out from where the field was laid out.
     fn scroll_offset(&self) -> f32 {
-        TOP_BAR_HEIGHT + self.column().inset_y - self.field_rect[1]
+        TOP_BAR_HEIGHT - self.field_rect[1]
     }
 
     fn max_scroll(&self) -> f32 {
-        let c = self.column();
         let (_, vh) = self.visible();
-        (self.field_rect[3] + c.inset_y * 2.0 + c.bottom_overscroll - vh).max(0.0)
+        (self.field_rect[3] - vh).max(0.0)
     }
 
     fn scroll_to(&self, y: f32, animated: bool, tx: &mut Tx) {
@@ -352,8 +413,11 @@ impl App {
     }
 
     fn pointer_over_chrome(&self) -> bool {
-        let (_, y) = self.pointer;
-        (0.0..TOP_BAR_HEIGHT).contains(&y) || (self.window.1 - FOOTER_HEIGHT..=self.window.1).contains(&y)
+        let (x, y) = self.pointer;
+        let f = self.frame();
+        let over_sidebar = (self.sidebar_visible || self.sidebar_peeking) && x < SIDEBAR_WIDTH.max(f.side_w);
+        let in_editor = (f.editor_x()..f.panel_x()).contains(&x);
+        over_sidebar || (in_editor && ((0.0..TOP_BAR_HEIGHT).contains(&y) || (self.window.1 - FOOTER_HEIGHT..=self.window.1).contains(&y)))
     }
 
     // MARK: Editing

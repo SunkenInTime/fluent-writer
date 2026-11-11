@@ -993,6 +993,7 @@ dependencies = [
  "rune",
  "serde",
  "serde_json",
+ "tempfile",
  "writer-core",
 ]
 
@@ -4307,10 +4308,12 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 name = "writer-agents"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "libc",
  "regex",
  "serde",
  "serde_json",
+ "tempfile",
  "unicode-segmentation",
  "uuid",
  "windows-sys 0.59.0",
