@@ -2911,6 +2911,7 @@ dependencies = [
 [[package]]
 name = "rune"
 version = "0.0.1"
+source = "git+https://github.com/SunkenInTime/rune?rev=9d0483543f0442d2efbf6bea4969826d868ae2c4#9d0483543f0442d2efbf6bea4969826d868ae2c4"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2991,10 +2992,12 @@ dependencies = [
 [[package]]
 name = "rune-motion"
 version = "0.1.0"
+source = "git+https://github.com/SunkenInTime/rune?rev=9d0483543f0442d2efbf6bea4969826d868ae2c4#9d0483543f0442d2efbf6bea4969826d868ae2c4"
 
 [[package]]
 name = "rune-staging"
 version = "0.0.1"
+source = "git+https://github.com/SunkenInTime/rune?rev=9d0483543f0442d2efbf6bea4969826d868ae2c4#9d0483543f0442d2efbf6bea4969826d868ae2c4"
 dependencies = [
  "wgpu",
 ]
@@ -3002,6 +3005,7 @@ dependencies = [
 [[package]]
 name = "rune-taffy"
 version = "0.0.1"
+source = "git+https://github.com/SunkenInTime/rune?rev=9d0483543f0442d2efbf6bea4969826d868ae2c4#9d0483543f0442d2efbf6bea4969826d868ae2c4"
 dependencies = [
  "taffy",
 ]
