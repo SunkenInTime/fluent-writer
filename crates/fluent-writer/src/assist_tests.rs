@@ -568,3 +568,35 @@ fn registering_with_a_missing_cli_says_so() {
     wait(&mut rt, |s| s.assist.connect.running == 0);
     assert_eq!(rt.state.status().0, "No Such CLI isn't installed");
 }
+
+// MARK: Toolbar
+
+#[test]
+fn toolbar_buttons_toggle_their_tab_and_show_state() {
+    use crate::chrome::Button;
+    let (mut rt, _dir) = harness(DRAFT);
+    add(&mut rt, 4..7, "Dog?");
+    assert_eq!(rt.state.chrome_button_count(Button::Comments), 1);
+    rt.update(|s, tx| s.press_chrome_button(Button::Comments, tx));
+    assert!(rt.state.assist_visible);
+    assert!(rt.state.chrome_button_active(Button::Comments));
+    assert!(!rt.state.chrome_button_active(Button::Assist));
+    // Another tab's button switches tabs; the open tab's button closes the panel.
+    rt.update(|s, tx| s.press_chrome_button(Button::Assist, tx));
+    assert!(rt.state.assist_visible);
+    assert!(rt.state.chrome_button_active(Button::Assist));
+    rt.update(|s, tx| s.press_chrome_button(Button::Assist, tx));
+    assert!(!rt.state.assist_visible);
+    // Versions is active while a preview shows, panel or not.
+    let v = writer_core::DraftVersion::new(writer_core::VersionKind::Proposal, "Short", "Codex", "A cat sat.");
+    let id = v.id.clone();
+    rt.update(|s, tx| {
+        s.add_version(v);
+        s.preview_version(&id, tx);
+    });
+    assert!(rt.state.chrome_button_active(Button::Versions));
+    // The Assist button opens the panel even on an empty draft, unlike Show Assist.
+    let (mut rt, _dir) = harness("");
+    rt.update(|s, tx| s.press_chrome_button(Button::Assist, tx));
+    assert!(rt.state.assist_visible);
+}

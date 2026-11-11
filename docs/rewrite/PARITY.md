@@ -89,7 +89,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [x] Comments: `text.bubble`, label "Comments", tooltip "Comments (⇧⌘M)", toggles the Assist panel on its Comments tab. `ChromeControls.swift:72`, `ChromeControls.swift:85-86`, `ChromeControls.swift:159-166` — *Rust: Drawn as SVG; the toggle is `App::toggle_panel`, a placeholder until the Assist port.*
 - [x] Versions: `clock.arrow.circlepath`, label "Versions", tooltip "Versions (⌥⌘V)", toggles the Assist panel on its Versions tab. `ChromeControls.swift:73`, `ChromeControls.swift:87-88` — *Rust: As Comments.*
 - [x] Assist: `sparkles`, label "Assist", tooltip "Assist (⌥⌘J)", toggles the Assist panel on its Ask tab. `ChromeControls.swift:74`, `ChromeControls.swift:89-90` — *Rust: As Comments.*
-- [ ] Toggle rule: if the panel is open on that tab, close it; otherwise open it on that tab (keeping the current provider). `ChromeControls.swift:159-162` — *Rust: Needs the Assist panel; `App::toggle_panel` is the hook.*
+- [x] Toggle rule: if the panel is open on that tab, close it; otherwise open it on that tab (keeping the current provider). `ChromeControls.swift:159-162` — *Rust: Needs the Assist panel; `App::toggle_panel` is the hook.* Filled in by the Assist port: `App::assist_toggle_tab`; tested (`toolbar_buttons_toggle_their_tab_and_show_state`).
 - [x] Symbols are drawn at 13 pt, regular weight, image only, no border. `ChromeControls.swift:14-18` — *Rust: SVG bodies in a 16 pt box with 1.1 pt strokes, the size a 13 pt symbol draws at.*
 - [x] Icon tint: `caret` when active, `text` while hovered, `icon` otherwise. `ChromeControls.swift:47`
 - [x] Hover/active plate: rounded rect, corner radius 6, filled with `sidebarSelection` at α0.7 on hover and α0.9 when active; clear otherwise. `ChromeControls.swift:26`, `ChromeControls.swift:49-50`
@@ -99,10 +99,10 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [x] Badge text is the count, or "99+" above 99; hidden at 0. `ChromeControls.swift:60-66`
 - [x] Badge colour is `caret` when the button is active, `text` otherwise. `ChromeControls.swift:48`
 - [x] Button accessibility value is the count when > 0, none otherwise. `ChromeControls.swift:63`
-- [ ] Comments badge shows the number of open comments (detached ones included). `ChromeControls.swift:136-137` — *Rust: Hook `App::open_comment_count` for the comments port.*
-- [ ] Comments button is active while the Assist panel is open on Comments. `ChromeControls.swift:140` — *Rust: Hook `App::open_panel_tab` for the Assist port.*
-- [ ] Versions button is active while the panel is open on Versions, or while a version preview is showing. `ChromeControls.swift:141` — *Rust: Hooks `open_panel_tab` and `previewing_version`.*
-- [ ] Assist button is active while the panel is open on Ask. `ChromeControls.swift:142` — *Rust: Hook `open_panel_tab`.*
+- [x] Comments badge shows the number of open comments (detached ones included). `ChromeControls.swift:136-137` — *Rust: Hook `App::open_comment_count` for the comments port.* Filled in by the Assist port; tested.
+- [x] Comments button is active while the Assist panel is open on Comments. `ChromeControls.swift:140` — *Rust: Hook `App::open_panel_tab` for the Assist port.* Filled in by the Assist port; tested.
+- [x] Versions button is active while the panel is open on Versions, or while a version preview is showing. `ChromeControls.swift:141` — *Rust: Hooks `open_panel_tab` and `previewing_version`.* Filled in by the Assist port; tested.
+- [x] Assist button is active while the panel is open on Ask. `ChromeControls.swift:142` — *Rust: Hook `open_panel_tab`.* Filled in by the Assist port; tested.
 
 ### Sidebar button
 
@@ -120,7 +120,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 
 ### Opening the Assist panel in a narrow window
 
-- [ ] Opening the Assist panel widens the window to 720 pt (980 pt if the sidebar is pinned) when it is narrower, capped to the screen's visible width, shifted left to stay on screen, animated unless Reduce Motion. Not done in full screen. `ChromeControls.swift:147-157`, `AssistController.swift:380-384`
+- [x] Opening the Assist panel widens the window to 720 pt (980 pt if the sidebar is pinned) when it is narrower, capped to the screen's visible width, shifted left to stay on screen, animated unless Reduce Motion. Not done in full screen. `ChromeControls.swift:147-157`, `AssistController.swift:380-384` `App::make_room_for_panel` asks Rune (`Tx::resize_window`) for the width; Rune keeps the window on its screen and jumps under Reduce Motion. Checked in a real window on Linux: 600 pt wide became 720. Not done: the cap to the screen's visible width (Rune gives no screen size) and the full-screen exception.
 
 ---
 
@@ -457,9 +457,9 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### Assist
 
-- [ ] "Ask Codex…" ⌘J → open Assist on Ask with Codex selected; disabled when the draft is empty. `MainMenu.swift:137`, `AssistController.swift:870`, `Commands.swift:186`
-- [ ] "Ask Claude…" ⇧⌘J → open Assist on Ask with Claude selected; disabled when the draft is empty. `MainMenu.swift:138`, `AssistController.swift:871`, `Commands.swift:186`
-- [ ] "Show Assist" ⌥⌘J → close the panel if open, else open it on its last tab; disabled when the draft is empty. `MainMenu.swift:139`, `AssistController.swift:866-868`, `Commands.swift:186`
+- [x] "Ask Codex…" ⌘J → open Assist on Ask with Codex selected; disabled when the draft is empty. `MainMenu.swift:137`, `AssistController.swift:870`, `Commands.swift:186`
+- [x] "Ask Claude…" ⇧⌘J → open Assist on Ask with Claude selected; disabled when the draft is empty. `MainMenu.swift:138`, `AssistController.swift:871`, `Commands.swift:186`
+- [x] "Show Assist" ⌥⌘J → close the panel if open, else open it on its last tab; disabled when the draft is empty. `MainMenu.swift:139`, `AssistController.swift:866-868`, `Commands.swift:186`
 - [ ] separator `MainMenu.swift:140`
 - [ ] "Add Comment…" ⌥⌘M → comment composer; disabled when the draft is empty. `MainMenu.swift:141`, `Commands.swift:187`
 - [ ] "Show Comments" ⇧⌘M → open Assist on Comments; always enabled. `MainMenu.swift:142`, `AssistController.swift:872`
@@ -469,7 +469,7 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 - [ ] "Newer Version" ⌥⌘→ → step forward; enabled only while previewing. `MainMenu.swift:146`, `Commands.swift:189`
 - [ ] "Use This Version" ⌥⌘↩ → use the previewed version; enabled only while previewing. `MainMenu.swift:147`, `Commands.swift:190`
 - [ ] separator `MainMenu.swift:148`
-- [ ] "Connect an Outside Agent…", no shortcut, always → connect sheet. `MainMenu.swift:149`
+- [x] "Connect an Outside Agent…", no shortcut, always → connect sheet. `MainMenu.swift:149`
 
 ### Window
 
@@ -692,71 +692,71 @@ All format commands apply through the text system as one undo step with the name
 
 ### Panel
 
-- [ ] Panel background `canvas`, 1 pt `hairline` on its left edge; accessibility group "Assist". `AssistController.swift:6-14`, `AssistController.swift:182-183`
-- [ ] Created on first use. `AssistController.swift:857-864`
-- [ ] Showing it adds it at the right edge (widening the window if narrow), selects the requested tab, refreshes the scope line and lists, and focuses the instruction field when on Ask. `AssistController.swift:377-391`
-- [ ] Ask Codex / Ask Claude switch the provider and open on Ask. `AssistController.swift:385`, `AssistController.swift:870-871`
-- [ ] Closing stops any running request, removes the panel and focuses the preview text (if previewing) or the editor. `AssistController.swift:393-400`
-- [ ] Esc in the editor: clears the active comment if any; otherwise closes the Assist panel if open. `EditorController.swift:753-755`
-- [ ] Chrome does not auto-hide on typing while the panel is open. `EditorController.swift:653`
-- [ ] Panel padding 22 pt. `AssistController.swift:294`
-- [ ] Provider pop-up at (18, 40), 120×24, borderless, IBM Plex Mono 12 pt, items "Codex", "Claude"; accessibility label "Provider". `AssistController.swift:185-191`, `AssistController.swift:296`
-- [ ] Provider choice persisted under `assist.provider`; default Codex. `AssistController.swift:138`, `AssistController.swift:668-674`
-- [ ] Close button: text "Close", borderless, IBM Plex Mono 12 pt, `quiet`, 50×20 at right edge − 22, y 42; accessibility label "Close assist". `AssistController.swift:193-199`, `AssistController.swift:297`
-- [ ] Tabs: segmented "Ask" | "Comments" | "Versions", small, IBM Plex Mono 11 pt, equal widths, at (22, 72), full inner width, 22 tall; accessibility label "Assist section". `AssistController.swift:109`, `AssistController.swift:201-207`, `AssistController.swift:298`
-- [ ] Tab labels show counts: "Comments <open count>" and "Versions <count>" when non-zero. `AssistController.swift:472-477`
-- [ ] Tab content starts at y 106. `AssistController.swift:299`
-- [ ] Switching tabs refreshes lists and toolbar button states. `AssistController.swift:423-427`
+- [x] Panel background `canvas`, 1 pt `hairline` on its left edge; accessibility group "Assist". `AssistController.swift:6-14`, `AssistController.swift:182-183` Built in `assist_view.rs`.
+- [x] Created on first use. `AssistController.swift:857-864` The panel's state lives on `App` from launch (`assist.rs`); nothing visible differs.
+- [x] Showing it adds it at the right edge (widening the window if narrow), selects the requested tab, refreshes the scope line and lists, and focuses the instruction field when on Ask. `AssistController.swift:377-391`
+- [x] Ask Codex / Ask Claude switch the provider and open on Ask. `AssistController.swift:385`, `AssistController.swift:870-871`
+- [x] Closing stops any running request, removes the panel and focuses the preview text (if previewing) or the editor. `AssistController.swift:393-400`
+- [x] Esc in the editor: clears the active comment if any; otherwise closes the Assist panel if open. `EditorController.swift:753-755`
+- [x] Chrome does not auto-hide on typing while the panel is open. `EditorController.swift:653`
+- [x] Panel padding 22 pt. `AssistController.swift:294`
+- [x] Provider pop-up at (18, 40), 120×24, borderless, IBM Plex Mono 12 pt, items "Codex", "Claude"; accessibility label "Provider". `AssistController.swift:185-191`, `AssistController.swift:296` A native menu where Rune has one (macOS, Windows); on Linux, where Rune has no pop-up menus, the app draws the menu itself with the current provider ticked over the button. The chevrons are a vector stand-in for the pop-up's arrows.
+- [x] Provider choice persisted under `assist.provider`; default Codex. `AssistController.swift:138`, `AssistController.swift:668-674` Kept in `preferences.json` under the same key.
+- [x] Close button: text "Close", borderless, IBM Plex Mono 12 pt, `quiet`, 50×20 at right edge − 22, y 42; accessibility label "Close assist". `AssistController.swift:193-199`, `AssistController.swift:297`
+- [x] Tabs: segmented "Ask" | "Comments" | "Versions", small, IBM Plex Mono 11 pt, equal widths, at (22, 72), full inner width, 22 tall; accessibility label "Assist section". `AssistController.swift:109`, `AssistController.swift:201-207`, `AssistController.swift:298` The segmented control is drawn in the app: a grey track with the selected segment on a raised plate.
+- [x] Tab labels show counts: "Comments <open count>" and "Versions <count>" when non-zero. `AssistController.swift:472-477`
+- [x] Tab content starts at y 106. `AssistController.swift:299`
+- [x] Switching tabs refreshes lists and toolbar button states. `AssistController.swift:423-427`
 
 ### Ask tab
 
-- [ ] Scope line (IBM Plex Mono 12 pt, `text`, 18 pt tall, truncating): "Full draft · <n> word(s) → <Provider>". `AssistController.swift:212-213`, `AssistController.swift:465`
-- [ ] With non-empty selected words: "Draft · focus on <n> selected word(s) → <Provider>". `AssistController.swift:460-463`
-- [ ] While previewing a version: "Version “<label>” · <n> words → <Provider>". `AssistController.swift:449-453`
-- [ ] Empty draft: "Write something first". `AssistController.swift:456`
-- [ ] Scope accessibility labels: "Will send the full draft, <n> words, to <Provider>"; "Will send the draft, <n> words, focused on <m> selected words, to <Provider>"; "Will send the previewed version, <n> words, to <Provider>". `AssistController.swift:452`, `AssistController.swift:463`, `AssistController.swift:466`
-- [ ] Scope updates on selection change (not while a request runs) and on provider change. `AssistController.swift:438-439`, `AssistController.swift:672`
-- [ ] Privacy note (IBM Plex Mono 11 pt, `quiet`, wraps): "Nothing is sent until you press Send. The agent gets this draft, your selection and comments, with no files, commands or web access." `AssistController.swift:214-215`, `AssistController.swift:318-320`
-- [ ] Quick-action buttons "Critique", "Clarify", "Shorten", "Stronger opening": recessed style, IBM Plex Mono 12 pt, 22 pt tall, fitted width + 8, 6 pt apart, wrapping to new rows 28 pt apart; accessibility label "<label> with the selected provider". `AssistController.swift:216-224`, `AssistController.swift:321-328`, `WriterAgents/AgentModels.swift:25-36`
-- [ ] Quick actions and the provider pop-up are disabled while a request runs. `AssistController.swift:850-851`
-- [ ] Instruction field: 44 pt tall, width inner − 74, rounded bezel, IBM Plex Mono 13 pt, wraps, placeholder "Ask anything, or say what to change or add", no focus ring; accessibility label "Instruction". `AssistController.swift:225-235`, `AssistController.swift:330`
-- [ ] Return in the instruction field sends it (ignored when blank); Esc stops a running request, otherwise closes the panel. `AssistController.swift:693-703`, `AssistController.swift:684-687`
-- [ ] Option-Return in the instruction field inserts a line break. **(AppKit built-in field-editor behaviour)**
-- [ ] Send button 66×28, rounded, IBM Plex Mono 12 pt, no key equivalent; "Send" (accessibility "Send instruction") or "Stop" while running (accessibility "Stop request"); Stop cancels the request. `AssistController.swift:236-240`, `AssistController.swift:331`, `AssistController.swift:689-691`, `AssistController.swift:848-849`
-- [ ] Status line (IBM Plex Mono 12 pt, wraps) under the field. `AssistController.swift:241`, `AssistController.swift:333-335`
-- [ ] "Preview Version" small button appears under the status when the last reply's version still exists; it opens the preview. `AssistController.swift:257`, `AssistController.swift:336-342`, `AssistController.swift:656-658`
-- [ ] "Feedback" header (IBM Plex Mono 11 pt, `quiet`) shown while running or when there is feedback; feedback below it, read-only selectable, IBM Plex Mono 13 pt, `text`, line height ×1.35, filling to 20 pt above the panel bottom; accessibility label "Feedback". `AssistController.swift:242-256`, `AssistController.swift:343-345`, `AssistController.swift:839-845`
+- [x] Scope line (IBM Plex Mono 12 pt, `text`, 18 pt tall, truncating): "Full draft · <n> word(s) → <Provider>". `AssistController.swift:212-213`, `AssistController.swift:465`
+- [x] With non-empty selected words: "Draft · focus on <n> selected word(s) → <Provider>". `AssistController.swift:460-463`
+- [x] While previewing a version: "Version “<label>” · <n> words → <Provider>". `AssistController.swift:449-453` Refreshes on the Swift triggers only (selection, provider, show, a request ending), so previewing a version from its card leaves the line stale until one of those, as in the Swift app (Oddity 29).
+- [x] Empty draft: "Write something first". `AssistController.swift:456`
+- [ ] Scope accessibility labels: "Will send the full draft, <n> words, to <Provider>"; "Will send the draft, <n> words, focused on <m> selected words, to <Provider>"; "Will send the previewed version, <n> words, to <Provider>". `AssistController.swift:452`, `AssistController.swift:463`, `AssistController.swift:466` Set on the scope text; checked in tests, not with a screen reader.
+- [x] Scope updates on selection change (not while a request runs) and on provider change. `AssistController.swift:438-439`, `AssistController.swift:672`
+- [x] Privacy note (IBM Plex Mono 11 pt, `quiet`, wraps): "Nothing is sent until you press Send. The agent gets this draft, your selection and comments, with no files, commands or web access." `AssistController.swift:214-215`, `AssistController.swift:318-320`
+- [x] Quick-action buttons "Critique", "Clarify", "Shorten", "Stronger opening": recessed style, IBM Plex Mono 12 pt, 22 pt tall, fitted width + 8, 6 pt apart, wrapping to new rows 28 pt apart; accessibility label "<label> with the selected provider". `AssistController.swift:216-224`, `AssistController.swift:321-328`, `WriterAgents/AgentModels.swift:25-36` The recessed bezel is drawn as a grey plate; widths (text + 24 + 8) match `docs/screenshots/assist-diff.png` to the point.
+- [x] Quick actions and the provider pop-up are disabled while a request runs. `AssistController.swift:850-851`
+- [x] Instruction field: 44 pt tall, width inner − 74, rounded bezel, IBM Plex Mono 13 pt, wraps, placeholder "Ask anything, or say what to change or add", no focus ring; accessibility label "Instruction". `AssistController.swift:225-235`, `AssistController.swift:330` The rounded bezel is drawn: `card` fill, a 1 pt edge, radius 6.
+- [x] Return in the instruction field sends it (ignored when blank); Esc stops a running request, otherwise closes the panel. `AssistController.swift:693-703`, `AssistController.swift:684-687` Shift-Return sends too, as in an AppKit field editor.
+- [x] Option-Return in the instruction field inserts a line break. **(AppKit built-in field-editor behaviour)**
+- [x] Send button 66×28, rounded, IBM Plex Mono 12 pt, no key equivalent; "Send" (accessibility "Send instruction") or "Stop" while running (accessibility "Stop request"); Stop cancels the request. `AssistController.swift:236-240`, `AssistController.swift:331`, `AssistController.swift:689-691`, `AssistController.swift:848-849` The bezel is a 22 pt grey plate centred in the 28 pt frame, as in the screenshot.
+- [x] Status line (IBM Plex Mono 12 pt, wraps) under the field. `AssistController.swift:241`, `AssistController.swift:333-335`
+- [x] "Preview Version" small button appears under the status when the last reply's version still exists; it opens the preview. `AssistController.swift:257`, `AssistController.swift:336-342`, `AssistController.swift:656-658`
+- [x] "Feedback" header (IBM Plex Mono 11 pt, `quiet`) shown while running or when there is feedback; feedback below it, read-only selectable, IBM Plex Mono 13 pt, `text`, line height ×1.35, filling to 20 pt above the panel bottom; accessibility label "Feedback". `AssistController.swift:242-256`, `AssistController.swift:343-345`, `AssistController.swift:839-845` Line height round(13 × 1.3 × 1.35) = 23 pt. Accessibility label set, not checked with a screen reader.
 
 ### Sending
 
-- [ ] The request uses the previewed version's text when previewing, otherwise the draft; nothing is sent if that text is blank. `AssistController.swift:705-709`
-- [ ] Sending stops any earlier request, clears the result area, and flushes notes to disk. `AssistController.swift:710-712`
-- [ ] The selection is sent as the passage to focus on only when not previewing and it isn't blank. `AssistController.swift:713-716`
-- [ ] Ask (custom) and Send Comments include all open, still-attached comments with their replies; quick actions send none. `AssistController.swift:717-722`
-- [ ] The last 4 Assist exchanges for this draft are sent as history. `AssistController.swift:724`
-- [ ] Status while waiting: "<Provider> is reading the draft…", "… the version…", or "… <n> comment(s)…". `AssistController.swift:736-738`
-- [ ] Send Comments switches to the Ask tab. `AssistController.swift:735`
-- [ ] Feedback streams in as the reply arrives; status changes to "Drafting edits…" once the reply contains `<edit`. `AssistController.swift:751-753`, `WriterAgents/AgentModels.swift:213-228`
-- [ ] Failure: feedback cleared, status shows the error in `warning`. `AssistController.swift:758-764`
-- [ ] Stop (button, Esc, closing the panel, opening another document, quitting): "Stopped. Nothing was changed." `AssistController.swift:402-412`, `AssistController.swift:431-436`, `main.swift:40`
-- [ ] A reply from a stopped/older request is ignored. `AssistController.swift:743-746`
-- [ ] Replies to comments are added to those comments with the provider name as author. `AssistController.swift:774-776`
-- [ ] Edits are placed on the text as it is when the reply arrives (typing during the wait is kept); duplicate matches pick the occurrence nearest the selection or the edit's comment. `AssistController.swift:777-783`, `WriterCore/EditPlacement.swift:69-90`
-- [ ] If the edits change the text, a new version is created (draft untouched): label is the instruction (one line, 48 characters max: 47 + "…"), "Resolve <n> comment(s)", or the action label; "(from “<base label>”)" appended when based on a version; source is the provider; feedback attached; resolves the comments its edits named. `AssistController.swift:784-800`, `AssistController.swift:828-831`
-- [ ] Feedback shown: the reply's notes; "No feedback." when there are no notes, no version and no replies. `AssistController.swift:802-803`
-- [ ] Appended: "Answered <n> comment(s) — see Comments." when the agent replied to comments. `AssistController.swift:804-806`
-- [ ] Appended: "<n> edit(s) couldn't be placed:" then for each "• <reason>\n  “<first 300 chars of new text>”". Reasons: "The edit didn't say what text to change.", "Couldn't find the text this edit changes. It may have been edited since.", "This edit overlaps another one." `AssistController.swift:807-812`, `WriterCore/EditPlacement.swift:80-89`
-- [ ] Every completed request is added to the draft's Assist history (provider, action, instruction, feedback, version, comments). `AssistController.swift:814-815`
-- [ ] With a version: status "<n> edit(s) ready as a new version, shown in the editor. ← → switch versions · ↩ use it · esc back to your draft." and the preview opens; otherwise the status clears. `AssistController.swift:816-823`
-- [ ] Send Comments that got only replies (no version) switches to the Comments tab. `AssistController.swift:824`
-- [ ] Opening a different document stops the request and clears the result. `AssistController.swift:431-436`, `EditorController.swift:353`
+- [x] The request uses the previewed version's text when previewing, otherwise the draft; nothing is sent if that text is blank. `AssistController.swift:705-709`
+- [x] Sending stops any earlier request, clears the result area, and flushes notes to disk. `AssistController.swift:710-712`
+- [x] The selection is sent as the passage to focus on only when not previewing and it isn't blank. `AssistController.swift:713-716`
+- [x] Ask (custom) and Send Comments include all open, still-attached comments with their replies; quick actions send none. `AssistController.swift:717-722`
+- [x] The last 4 Assist exchanges for this draft are sent as history. `AssistController.swift:724`
+- [x] Status while waiting: "<Provider> is reading the draft…", "… the version…", or "… <n> comment(s)…". `AssistController.swift:736-738`
+- [x] Send Comments switches to the Ask tab. `AssistController.swift:735`
+- [x] Feedback streams in as the reply arrives; status changes to "Drafting edits…" once the reply contains `<edit`. `AssistController.swift:751-753`, `WriterAgents/AgentModels.swift:213-228`
+- [x] Failure: feedback cleared, status shows the error in `warning`. `AssistController.swift:758-764`
+- [x] Stop (button, Esc, closing the panel, opening another document, quitting): "Stopped. Nothing was changed." `AssistController.swift:402-412`, `AssistController.swift:431-436`, `main.swift:40` Quitting drops the request's `AgentHandle`, which stops it.
+- [x] A reply from a stopped/older request is ignored. `AssistController.swift:743-746`
+- [x] Replies to comments are added to those comments with the provider name as author. `AssistController.swift:774-776`
+- [x] Edits are placed on the text as it is when the reply arrives (typing during the wait is kept); duplicate matches pick the occurrence nearest the selection or the edit's comment. `AssistController.swift:777-783`, `WriterCore/EditPlacement.swift:69-90`
+- [x] If the edits change the text, a new version is created (draft untouched): label is the instruction (one line, 48 characters max: 47 + "…"), "Resolve <n> comment(s)", or the action label; "(from “<base label>”)" appended when based on a version; source is the provider; feedback attached; resolves the comments its edits named. `AssistController.swift:784-800`, `AssistController.swift:828-831`
+- [x] Feedback shown: the reply's notes; "No feedback." when there are no notes, no version and no replies. `AssistController.swift:802-803`
+- [x] Appended: "Answered <n> comment(s) — see Comments." when the agent replied to comments. `AssistController.swift:804-806`
+- [x] Appended: "<n> edit(s) couldn't be placed:" then for each "• <reason>\n  “<first 300 chars of new text>”". Reasons: "The edit didn't say what text to change.", "Couldn't find the text this edit changes. It may have been edited since.", "This edit overlaps another one." `AssistController.swift:807-812`, `WriterCore/EditPlacement.swift:80-89`
+- [x] Every completed request is added to the draft's Assist history (provider, action, instruction, feedback, version, comments). `AssistController.swift:814-815`
+- [x] With a version: status "<n> edit(s) ready as a new version, shown in the editor. ← → switch versions · ↩ use it · esc back to your draft." and the preview opens; otherwise the status clears. `AssistController.swift:816-823`
+- [x] Send Comments that got only replies (no version) switches to the Comments tab. `AssistController.swift:824`
+- [x] Opening a different document stops the request and clears the result. `AssistController.swift:431-436`, `EditorController.swift:353`
 
 ### Providers
 
-- [ ] Codex runs `codex app-server` (found on PATH, Homebrew, /usr/local, ~/.local/bin, ~/.npm-global/bin, ~/.bun/bin, ~/.volta/bin, ~/.claude/local, ~/.codex/bin, or a login-shell lookup) in an empty temporary folder, ephemeral thread, read-only sandbox, approval "never". `WriterAgents/CodexAgent.swift:25-60`, `WriterAgents/CodexAgent.swift:121-143`, `WriterAgents/LineProcess.swift:92-122`
+- [ ] Codex runs `codex app-server` (found on PATH, Homebrew, /usr/local, ~/.local/bin, ~/.npm-global/bin, ~/.bun/bin, ~/.volta/bin, ~/.claude/local, ~/.codex/bin, or a login-shell lookup) in an empty temporary folder, ephemeral thread, read-only sandbox, approval "never". `WriterAgents/CodexAgent.swift:25-60`, `WriterAgents/CodexAgent.swift:121-143`, `WriterAgents/LineProcess.swift:92-122` From the panel: a real Codex request (codex-cli 0.167.1) ran end to end on Linux on 2026-11-10: the reply streamed, became a version, previewed as a diff and was used. The launch details are `writer-agents`' and weren't re-checked here.
 - [ ] Codex declines every command, file-change, permission and elicitation request. `WriterAgents/CodexAgent.swift:185-198`
 - [ ] Codex errors: "Codex isn't installed. Install it with `npm install -g @openai/codex`, then sign in with `codex login`."; sign-in errors → "Codex isn't signed in. Run `codex login` in Terminal, then try again."; "Codex stopped unexpectedly: <last stderr line>"; "Couldn't start Codex: <reason>"; "Codex didn't start a conversation."; interrupted → "Stopped." `WriterAgents/CodexAgent.swift:34`, `WriterAgents/CodexAgent.swift:47`, `WriterAgents/CodexAgent.swift:50`, `WriterAgents/CodexAgent.swift:133`, `WriterAgents/CodexAgent.swift:172`, `WriterAgents/CodexAgent.swift:200-206`
-- [ ] Claude runs the bundled Node bridge (`Resources/bridge/claude/bridge.mjs`, or the repo copy) with `node`, in an empty temporary folder, passing the `claude` binary's path in `FLUENT_WRITER_CLAUDE_PATH`. `WriterAgents/ClaudeAgent.swift:13-56`
+- [ ] Claude runs the bundled Node bridge (`Resources/bridge/claude/bridge.mjs`, or the repo copy) with `node`, in an empty temporary folder, passing the `claude` binary's path in `FLUENT_WRITER_CLAUDE_PATH`. `WriterAgents/ClaudeAgent.swift:13-56` From the panel: a real Claude request through `FLUENT_WRITER_BRIDGE` ran end to end on Linux on 2026-11-10 (it also answered a comment). The launch details are `writer-agents`' and weren't re-checked here.
 - [ ] Claude errors: "Claude needs Node.js. Install it from nodejs.org or with `brew install node`."; "The Claude bridge is missing from this build."; "Claude stopped unexpectedly: <detail>"; "Couldn't start Claude: <reason>"; "Claude reported an error." `WriterAgents/ClaudeAgent.swift:29`, `WriterAgents/ClaudeAgent.swift:33`, `WriterAgents/ClaudeAgent.swift:47`, `WriterAgents/ClaudeAgent.swift:50`, `WriterAgents/ClaudeAgent.swift:69`
 - [ ] Bridge: one turn, no tools, no MCP servers, no setting sources, every tool request denied ("Writing assistance has no tools."), system prompt "You are a careful writing editor. You only read the text you are given and reply in the requested format.", streams text deltas. `bridge/claude/bridge.mjs:37-73`
 - [ ] Bridge errors: "The Claude bridge dependencies are missing. Run `npm install` in bridge/claude."; sign-in → "Claude isn't signed in. Run `claude` in Terminal and sign in, then try again."; missing binary → "Claude Code isn't installed. Install it with `npm install -g @anthropic-ai/claude-code`."; aborted → "Stopped." `bridge/claude/bridge.mjs:18-35`, `bridge/claude/bridge.mjs:77`, `bridge/claude/bridge.mjs:86-88`
@@ -785,17 +785,17 @@ All format commands apply through the text system as one undo step with the name
 - [x] Comments follow their text as it is edited; a comment whose text is deleted becomes detached (no highlight). `NotesController.swift:65-75` Rune reports no edited range, so `notes::edit_between` works it out from the text before and after, the selection before the edit and the caret after; `App::apply` passes its exact range.
 - [x] A detached open comment re-attaches when its quoted text reappears (e.g. after undo). `NotesController.swift:98-107`
 - [x] Comments re-anchor by their quote when a draft is opened. `NotesController.swift:43-44`
-- [ ] Comments tab: "Add Comment" small button top-left (tooltip "Comment on the selection or the current line (⌥⌘M)"); "Show resolved" small checkbox top-right, IBM Plex Mono 11 pt, hidden when there are no resolved comments. `AssistController.swift:263-269`, `AssistController.swift:351-355`, `AssistController.swift:492`
-- [ ] List shows open comments, plus resolved ones when "Show resolved" is ticked. `AssistController.swift:486`, `AssistController.swift:648-651`
-- [ ] Empty text (centred, IBM Plex Mono 12 pt, `quiet`): "Select some text, or put the caret on a line, and press ⌥⌘M to leave a comment.\n\nWrite as many as you like, then send them all at once. The agent's fixes come back as a version you can preview." `AssistController.swift:273-275`
-- [ ] Send button pinned 52 pt from the bottom, full width, 30 pt tall, IBM Plex Mono 12 pt: "Send <n> Comment(s) to <Provider>", or "Send Comments" when none; enabled only with attached open comments and no request running. `AssistController.swift:270-272`, `AssistController.swift:359-361`, `AssistController.swift:488-490`
-- [ ] Cards: rounded rect radius 8, 8 pt apart, fill `card`, `cardHover` on hover, `cardSelected` when active; 1 pt border `hairline`, or `caret` α0.5 when active. `AssistController.swift:21-57`, `AssistController.swift:92`
-- [ ] Resolved cards at α0.6. `AssistController.swift:24`, `AssistController.swift:533`
-- [ ] Card quote “<text>” (newlines as spaces), IBM Plex Mono Italic 11 pt `quiet`, max 2 lines; detached adds " — no longer in the draft"; quote width leaves 72 pt for buttons. `AssistController.swift:535-536`, `AssistController.swift:561-562`
-- [ ] Card body IBM Plex Mono 12 pt `text`; each reply "<author>: <text>" 11 pt `quiet`. 12 pt padding, 10 pt top, 4 pt after the quote, 6 pt after others. `AssistController.swift:537-543`, `AssistController.swift:554-574`
-- [ ] Card buttons 18×18, top-right, 24 pt apart, `quiet`: resolve `checkmark.circle` "Resolve" (or `arrow.uturn.backward.circle` "Reopen" when resolved), `pencil` "Edit comment", `trash` "Delete comment". `AssistController.swift:544-547`, `AssistController.swift:568-572`
+- [x] Comments tab: "Add Comment" small button top-left (tooltip "Comment on the selection or the current line (⌥⌘M)"); "Show resolved" small checkbox top-right, IBM Plex Mono 11 pt, hidden when there are no resolved comments. `AssistController.swift:263-269`, `AssistController.swift:351-355`, `AssistController.swift:492` The tooltip and the empty text name the platform's shortcut (Ctrl+Alt+M off the Mac).
+- [x] List shows open comments, plus resolved ones when "Show resolved" is ticked. `AssistController.swift:486`, `AssistController.swift:648-651`
+- [x] Empty text (centred, IBM Plex Mono 12 pt, `quiet`): "Select some text, or put the caret on a line, and press ⌥⌘M to leave a comment.\n\nWrite as many as you like, then send them all at once. The agent's fixes come back as a version you can preview." `AssistController.swift:273-275`
+- [x] Send button pinned 52 pt from the bottom, full width, 30 pt tall, IBM Plex Mono 12 pt: "Send <n> Comment(s) to <Provider>", or "Send Comments" when none; enabled only with attached open comments and no request running. `AssistController.swift:270-272`, `AssistController.swift:359-361`, `AssistController.swift:488-490`
+- [x] Cards: rounded rect radius 8, 8 pt apart, fill `card`, `cardHover` on hover, `cardSelected` when active; 1 pt border `hairline`, or `caret` α0.5 when active. `AssistController.swift:21-57`, `AssistController.swift:92` Hover is an overlay that turns `card` into `cardHover`.
+- [x] Resolved cards at α0.6. `AssistController.swift:24`, `AssistController.swift:533`
+- [x] Card quote “<text>” (newlines as spaces), IBM Plex Mono Italic 11 pt `quiet`, max 2 lines; detached adds " — no longer in the draft"; quote width leaves 72 pt for buttons. `AssistController.swift:535-536`, `AssistController.swift:561-562`
+- [x] Card body IBM Plex Mono 12 pt `text`; each reply "<author>: <text>" 11 pt `quiet`. 12 pt padding, 10 pt top, 4 pt after the quote, 6 pt after others. `AssistController.swift:537-543`, `AssistController.swift:554-574`
+- [x] Card buttons 18×18, top-right, 24 pt apart, `quiet`: resolve `checkmark.circle` "Resolve" (or `arrow.uturn.backward.circle` "Reopen" when resolved), `pencil` "Edit comment", `trash` "Delete comment". `AssistController.swift:544-547`, `AssistController.swift:568-572` The SF Symbols are vector stand-ins drawn at 15 pt.
 - [x] Clicking a card selects its text in the editor, scrolls to it (centres in focus modes), makes it active and closes any preview. `AssistController.swift:549`, `CommentComposer.swift:168-175` `App::reveal_comment`; the card is the Assist panel's.
-- [ ] Card accessibility: role button, press = click, label "Comment on “<first 60 chars of quote>”: <body>". `AssistController.swift:54-56`, `AssistController.swift:550`
+- [ ] Card accessibility: role button, press = click, label "Comment on “<first 60 chars of quote>”: <body>". `AssistController.swift:54-56`, `AssistController.swift:550` Set; checked in tests, not with a screen reader.
 - [x] Edit opens the composer pre-filled, button "Save", no placeholder; not available for detached comments. `CommentComposer.swift:157-165` `App::edit_comment`; the card's pencil button is the Assist panel's.
 - [x] Resolve/Reopen toggles the resolved state. `AssistController.swift:623-627` `App::set_comment_resolved`; the button is the Assist panel's.
 - [x] Delete removes the comment immediately (no confirmation). `AssistController.swift:634-638` `App::delete_comment`; the button is the Assist panel's.
@@ -808,13 +808,13 @@ All format commands apply through the text system as one undo step with the name
 
 ### Versions tab
 
-- [ ] Header text (IBM Plex Mono 11 pt, `quiet`): "Each agent reply becomes a version. Click one to preview it as a diff, then use it or go back. Using one keeps your current draft here too." `AssistController.swift:280-281`
-- [ ] First card "Your draft" (Medium 12 pt) with "What you're editing now", or "Back to editing (→ or esc)" while previewing; selected when not previewing; click closes the preview. `AssistController.swift:576-587`
-- [ ] Then one card per version, newest first: label (Medium 12 pt, 2 lines max, 20 pt narrower for the delete button); detail "<Saved draft | source> · <relative time>[ · used]"; feedback up to 3 lines, 11 pt `quiet`. `AssistController.swift:588-595`, `AssistController.swift:605-621`
+- [x] Header text (IBM Plex Mono 11 pt, `quiet`): "Each agent reply becomes a version. Click one to preview it as a diff, then use it or go back. Using one keeps your current draft here too." `AssistController.swift:280-281`
+- [x] First card "Your draft" (Medium 12 pt) with "What you're editing now", or "Back to editing (→ or esc)" while previewing; selected when not previewing; click closes the preview. `AssistController.swift:576-587`
+- [x] Then one card per version, newest first: label (Medium 12 pt, 2 lines max, 20 pt narrower for the delete button); detail "<Saved draft | source> · <relative time>[ · used]"; feedback up to 3 lines, 11 pt `quiet`. `AssistController.swift:588-595`, `AssistController.swift:605-621`
 - [x] Relative time: "just now" under 30 s, otherwise the short relative style. `VersionPreview.swift:330-335` `notes::relative_time`, in US English ("2 min. ago", "3 days ago").
-- [ ] Version card delete button `xmark` 14×14 "Delete version"; deleting the previewed version closes the preview. `AssistController.swift:596-598`, `AssistController.swift:640-646`
-- [ ] Clicking a version card previews it; the previewed card is selected. `AssistController.swift:579`, `AssistController.swift:600`
-- [ ] Version card accessibility label "<label>, <detail parts joined by ', '>". `AssistController.swift:601`
+- [x] Version card delete button `xmark` 14×14 "Delete version"; deleting the previewed version closes the preview. `AssistController.swift:596-598`, `AssistController.swift:640-646`
+- [x] Clicking a version card previews it; the previewed card is selected. `AssistController.swift:579`, `AssistController.swift:600`
+- [ ] Version card accessibility label "<label>, <detail parts joined by ', '>". `AssistController.swift:601` Set; not checked with a screen reader.
 - [ ] At most 40 versions per draft; past that the oldest unused version is dropped. `WriterCore/DocumentNotes.swift:168`, `WriterCore/DocumentNotes.swift:177-182`
 
 ### Preview
@@ -863,17 +863,17 @@ All format commands apply through the text system as one undo step with the name
 
 ### Connect sheet
 
-- [ ] Assist › Connect an Outside Agent… with no `fluent-writer-mcp` executable beside the app binary: sheet "The agent connector is missing from this build." / "Build the app with script/build-app.sh, which bundles fluent-writer-mcp." `ConnectAgent.swift:8-12`, `ConnectAgent.swift:33-39`
-- [ ] Otherwise a sheet titled "Connect an outside agent" with text "Claude Code or Codex can then see the draft open here, your selection, comments, versions and Assist history. They can leave comments and propose versions, which you preview and choose here, the same as Assist's. Run one of these in Terminal, or click a button to do it now." `ConnectAgent.swift:43-45`
-- [ ] Accessory 460×150: "Claude Code" heading (system 11 pt medium) and its command; "Codex" heading and its command; commands in IBM Plex Mono 10 pt, secondary colour, wrapping, selectable. `ConnectAgent.swift:46-62`
-- [ ] Claude command: `claude mcp add --scope user <server name> -- '<server path>' '--support' '<support folder>'` (each argument single-quoted). `ConnectAgent.swift:16-22`
-- [ ] Codex command: `codex mcp add <server name> -- '<server path>' '--support' '<support folder>'`. `ConnectAgent.swift:24-26`
-- [ ] Server name `fluent-writer`, or `fluent-writer-dev` in the dev build. `ConnectAgent.swift:14`
-- [ ] Buttons "Add to Claude Code", "Add to Codex", "Copy Commands", "Done". `ConnectAgent.swift:63-66`
-- [ ] Add to …: runs the CLI with those arguments; success flashes "Added to <Claude Code|Codex>. Start a new <name> session to use it." `ConnectAgent.swift:69-72`, `ConnectAgent.swift:83-101`
-- [ ] CLI not found: flash "<name> isn't installed". CLI can't start: flash "Couldn't run <tool>: <reason>". `ConnectAgent.swift:84-87`, `ConnectAgent.swift:110`
-- [ ] CLI non-zero exit: sheet "<name> didn't add the connector." with the last 600 characters of its output, or "It exited with status <n>." `ConnectAgent.swift:102-107`
-- [ ] Copy Commands copies "# Claude Code\n<claude cmd>\n\n# Codex\n<codex cmd>\n" and flashes "Copied the connect commands". `ConnectAgent.swift:73-77`
+- [x] Assist › Connect an Outside Agent… with no `fluent-writer-mcp` executable beside the app binary: sheet "The agent connector is missing from this build." / "Build the app with script/build-app.sh, which bundles fluent-writer-mcp." `ConnectAgent.swift:8-12`, `ConnectAgent.swift:33-39` Shown with the shared `ui::Alert`. The server is `fluent-writer-mcp` (`.exe` on Windows) beside the running executable on every platform, which on macOS is inside the bundle as before.
+- [x] Otherwise a sheet titled "Connect an outside agent" with text "Claude Code or Codex can then see the draft open here, your selection, comments, versions and Assist history. They can leave comments and propose versions, which you preview and choose here, the same as Assist's. Run one of these in Terminal, or click a button to do it now." `ConnectAgent.swift:43-45` Drawn in `ui::sheet` with `ui::button`s (four buttons and the commands are more than `ui::Alert` holds).
+- [x] Accessory 460×150: "Claude Code" heading (system 11 pt medium) and its command; "Codex" heading and its command; commands in IBM Plex Mono 10 pt, secondary colour, wrapping, selectable. `ConnectAgent.swift:46-62` Headings are IBM Plex Mono Medium 11 pt (the app embeds no system font). Each command box is at least 46 pt and grows for long support paths instead of clipping. No app icon: the sheet is 580 pt wide so the four buttons fit in one row.
+- [x] Claude command: `claude mcp add --scope user <server name> -- '<server path>' '--support' '<support folder>'` (each argument single-quoted). `ConnectAgent.swift:16-22` The support folder is made absolute first, so a relative `--support` still works.
+- [x] Codex command: `codex mcp add <server name> -- '<server path>' '--support' '<support folder>'`. `ConnectAgent.swift:24-26`
+- [x] Server name `fluent-writer`, or `fluent-writer-dev` in the dev build. `ConnectAgent.swift:14`
+- [x] Buttons "Add to Claude Code", "Add to Codex", "Copy Commands", "Done". `ConnectAgent.swift:63-66` Escape does nothing, as the alert had no Cancel button.
+- [ ] Add to …: runs the CLI with those arguments; success flashes "Added to <Claude Code|Codex>. Start a new <name> session to use it." `ConnectAgent.swift:69-72`, `ConnectAgent.swift:83-101` Built (on a thread, `App::connect_poll`), not run against the real CLIs: that would register the server in this machine's own Claude Code and Codex settings.
+- [x] CLI not found: flash "<name> isn't installed". CLI can't start: flash "Couldn't run <tool>: <reason>". `ConnectAgent.swift:84-87`, `ConnectAgent.swift:110` The not-found flash is tested; the can't-start flash is built but not exercised.
+- [ ] CLI non-zero exit: sheet "<name> didn't add the connector." with the last 600 characters of its output, or "It exited with status <n>." `ConnectAgent.swift:102-107` Built with `ui::Alert`; not exercised.
+- [x] Copy Commands copies "# Claude Code\n<claude cmd>\n\n# Codex\n<codex cmd>\n" and flashes "Copied the connect commands". `ConnectAgent.swift:73-77`
 
 ### What the app publishes and accepts
 
@@ -944,7 +944,7 @@ All format commands apply through the text system as one undo step with the name
 - [x] Sidebar: "Sidebar view" (segmented), "Files" (list), "Refresh folder" (refresh button), rows "<title>, <subtitle>". `Sidebar.swift:107`, `Sidebar.swift:115`, `Sidebar.swift:147`, `Sidebar.swift:378`
 - [x] Open picker: "Find a draft", "Recent drafts", rows "<title>, <when>". `OpenPicker.swift:41`, `OpenPicker.swift:55`, `OpenPicker.swift:159`
 - [x] SSH field "SSH location". `RemoteEditing.swift:104`
-- [ ] Assist: group "Assist"; "Provider"; "Close assist"; "Assist section"; quick actions "<label> with the selected provider"; "Instruction"; "Feedback"; Send/Stop "Send instruction"/"Stop request"; scope label sentences (section 14). `AssistController.swift:182-235`, `AssistController.swift:251`, `AssistController.swift:849`
+- [ ] Assist: group "Assist"; "Provider"; "Close assist"; "Assist section"; quick actions "<label> with the selected provider"; "Instruction"; "Feedback"; Send/Stop "Send instruction"/"Stop request"; scope label sentences (section 14). `AssistController.swift:182-235`, `AssistController.swift:251`, `AssistController.swift:849` All set; checked through tests and `--tree`, not with a screen reader.
 - [ ] Cards: role button, activatable with VoiceOver press; comment and version card labels (sections 15, 16); icon buttons labelled with their tooltip text. `AssistController.swift:54-56`, `AssistController.swift:526`
 - [ ] Comment composer text area "Comment". `CommentComposer.swift:57`
 - [ ] Image previews: role image, label alt text or "Image". `ImageBlocks.swift:101-102`, `ImageBlocks.swift:212`
@@ -1018,3 +1018,4 @@ Things in the code that look like bugs, dead code or mismatches. Listed, not fix
 26. The Info.plist has no app icon key (`script/build-app.sh:35-61`); the app uses the generic icon.
 27. Save As uses an app-modal save panel (`EditorController.swift:408`) while every other panel in the app is a window sheet.
 28. Typing any key in the editor hides the chrome, including arrow keys and ⌥/⌘ navigation, because the hook is on `keyDown` (`EditorTextView.swift:61-64`).
+29. The Assist scope line refreshes on selection changes, provider changes, opening the panel and a request ending (`AssistController.swift:438-439`, `672`, `386`, `853`), not when a version preview opens or closes from its card, so it can name the draft while a version is what Send will use, until the selection next moves.

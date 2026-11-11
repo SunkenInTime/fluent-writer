@@ -509,7 +509,6 @@ impl App {
             C::OlderVersion => self.preview_step(-1, tx),
             C::NewerVersion => self.preview_step(1, tx),
             C::UseThisVersion => self.preview_use(tx),
-            other => self.flash_message(format!("{other:?} isn't built yet"), tx),
         }
     }
 }
