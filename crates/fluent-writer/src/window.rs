@@ -71,12 +71,15 @@ impl App {
         self.win.placed = frame.is_some();
     }
 
-    /// The window became key or stopped being key.
+    /// The window became key or stopped being key (`windowDidBecomeKey`, `windowDidResignKey`).
+    /// A pinned sidebar lists again when the window comes back.
     pub fn window_focus_changed(&mut self, focused: bool, tx: &mut Tx) {
         self.win.key = focused;
         if focused {
             self.show_chrome(true, tx);
-            // The sidebar port reloads its list here when the sidebar is pinned.
+            if self.sidebar_visible {
+                self.reload_sidebar();
+            }
         } else {
             self.flush();
             self.show_chrome(false, tx);

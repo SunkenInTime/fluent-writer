@@ -5,9 +5,12 @@ use std::ops::Range;
 use std::time::Duration;
 
 use rune::{TextEdit, Tx};
-use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownBlockKind, MarkdownLine, markdown, text_stats, text_units};
+use writer_core::{DraftDocument, DraftLibrary, FocusUnit, MarkdownLine, markdown, text_stats, text_units};
 
+use crate::open_picker::Picker;
 use crate::prefs::Prefs;
+use crate::remote_editing::{Remote, RemoteStatus};
+use crate::sidebar::Sidebar;
 use crate::styler::Metrics;
 
 pub const TOP_BAR_HEIGHT: f32 = 40.0;
@@ -66,6 +69,9 @@ pub struct App {
     pub sidebar_visible: bool,
     /// The sidebar is showing over the text because the pointer is at the left edge.
     pub sidebar_peeking: bool,
+    pub sidebar: Sidebar,
+    pub picker: Picker,
+    pub remote: Remote,
     pub assist_visible: bool,
     pub notes: crate::notes::Notes,
     pub composer: crate::comment_composer::Composer,
@@ -108,7 +114,7 @@ pub struct App {
     recenter_delay: u8,
     /// A draft was just loaded: start its scroll view from the top before finding the caret.
     scroll_reset: bool,
-    typed_since_poll: bool,
+    pub(crate) typed_since_poll: bool,
     image_room_seen: Option<crate::images::Room>,
 
     /// The status label's tooltip, which outlives the status that set it (see `footer.rs`).
@@ -141,6 +147,9 @@ impl App {
             scale: 2.0,
             sidebar_visible: prefs.show_sidebar(),
             sidebar_peeking: false,
+            sidebar: Sidebar::new(&prefs),
+            picker: Picker::default(),
+            remote: Remote::new(),
             assist_visible: false,
             notes: crate::notes::Notes::new(library.support_directory()),
             composer: Default::default(),
@@ -182,7 +191,16 @@ impl App {
             win: crate::window::Window::new(),
         };
         app.load(document);
+        app.reload_sidebar();
         app
+    }
+
+    /// Hands background work the waker that brings the window back to `poll`.
+    pub fn set_waker(&mut self, waker: rune::Waker) {
+        self.images.setup(waker.clone());
+        self.notes.set_waker(waker.clone());
+        self.sidebar.set_waker(waker.clone());
+        self.remote.set_waker(waker);
     }
 
     // MARK: Layout
@@ -250,6 +268,8 @@ impl App {
         self.recenter_delay = 2;
         self.scroll_reset = true;
         self.notes_document_loaded();
+        self.remote.status = RemoteStatus::Idle;
+        self.sidebar_document_changed();
     }
 
     pub fn sync_document_from_view(&mut self) {
@@ -265,9 +285,10 @@ impl App {
         self.autosave_at = None;
         self.sync_document_from_view();
         match self.library.save(&mut self.draft) {
-            Ok(_) => {
+            Ok(result) => {
                 self.library.remember_selection(&self.draft);
                 self.save_state = SaveState::Saved;
+                self.after_save(result);
                 true
             }
             Err(e) => {
@@ -306,10 +327,6 @@ impl App {
     fn reparse(&mut self) {
         self.lines = markdown::parse(&self.edit.text);
         self.refresh_images();
-    }
-
-    pub fn fence_count(&self) -> usize {
-        self.lines.iter().filter(|l| l.kind == MarkdownBlockKind::CodeFence).count()
     }
 
     // MARK: Focus
@@ -519,6 +536,7 @@ impl App {
             self.refresh_images();
             changed = true;
         }
+        changed |= self.poll_sidebar(tx) | self.poll_remote(tx) | self.poll_picker(tx);
         let range = self.edit.range();
         if range != self.last_selection {
             self.last_selection = range;

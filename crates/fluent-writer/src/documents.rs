@@ -16,20 +16,32 @@ pub type Then = Box<dyn FnOnce(&mut App, &mut Tx)>;
 
 #[derive(Default)]
 pub struct Documents {
-    /// Waits on the "couldn't be saved" alert: runs after Continue, or after Save As succeeds.
-    pending: Option<Then>,
+    /// Waits on an alert of the leave check: the "couldn't be saved" one (runs after Continue,
+    /// or after Save As succeeds) or the "aren't on <host> yet" one (runs after Continue).
+    pub(crate) pending: Option<Then>,
     /// The leave check passed for a quit already, so closing the window doesn't ask again.
     pub quitting: bool,
 }
 
+/// A window the system already hid for a close comes back to show a question.
+pub fn bring_window_back() {
+    if let Some(handle) = crate::window::HANDLE.get() {
+        handle.open();
+    }
+}
+
 impl App {
-    /// Saves before the draft is replaced (New, Open, a sidebar click, open over SSH, close,
-    /// quit), then runs `then`. When the save fails it asks first: Keep Editing drops `then`,
-    /// Save As… runs it once the copy is written, Continue runs it anyway.
+    /// The leave check before the draft is replaced (New, Open, the Open picker, a sidebar
+    /// click, open over SSH, Close, Quit), then `then`. The Swift `confirmLeavingDocument`:
+    ///
+    /// 1. Save. If that works, a remote file's unsent edits are uploaded first
+    ///    ([`App::confirm_remote_uploaded`]: the "Saving to <host>…" sheet, and a warning with
+    ///    Keep Editing / Continue if the upload fails), then `then` runs.
+    /// 2. If the save fails, ask: Keep Editing drops `then`, Save As… runs it once the copy is
+    ///    written, Continue runs it anyway. Neither uploads, as in the Swift.
     pub fn leave_document(&mut self, tx: &mut Tx, then: impl FnOnce(&mut App, &mut Tx) + 'static) {
         if self.flush() {
-            // The SSH port uploads a remote file's unsent edits here before going on.
-            then(self, tx);
+            self.confirm_remote_uploaded(Box::new(then), tx);
             return;
         }
         let message = match &self.save_state {
@@ -57,10 +69,7 @@ impl App {
                     }
                 }),
         );
-        // A window the system already hid for a close comes back to show the question.
-        if let Some(handle) = crate::window::HANDLE.get() {
-            handle.open();
-        }
+        bring_window_back();
     }
 
     /// File › New: an empty, never-saved draft just takes the keyboard; anything else is left
@@ -175,12 +184,12 @@ impl App {
         });
     }
 
-    /// The last things before the app ends: the window's frame, and the caret.
-    /// The comments and versions port flushes the draft's notes and deletes the live-state
-    /// file here.
+    /// The last things before the app ends: the window's frame, the caret, and the draft's
+    /// notes, with the live-state file deleted (`applicationWillTerminate`).
     pub fn app_will_quit(&mut self) {
         self.save_window_frame();
         self.library.remember_selection(&self.draft);
+        self.notes.app_will_terminate();
     }
 
     /// Rune's `on_close`: the close button, or the system closing the window. Rune can't keep

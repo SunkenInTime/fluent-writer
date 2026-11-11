@@ -27,15 +27,6 @@ impl Appearance {
         Appearance::ALL.into_iter().find(|a| a.raw() == raw)
     }
 
-    /// The name shown in the View menu.
-    pub fn label(self) -> &'static str {
-        match self {
-            Appearance::System => "Match System",
-            Appearance::Light => "Light",
-            Appearance::Dark => "Dark",
-        }
-    }
-
     /// Whether the app draws dark, given the system's appearance.
     pub fn is_dark(self, system_dark: bool) -> bool {
         match self {

@@ -68,9 +68,12 @@ pub struct Images {
     web: HashMap<String, Cached>,
     failed: HashMap<String, String>,
     loading: HashSet<String>,
-    fetched: (Sender<(String, Result<Vec<u8>, String>)>, Receiver<(String, Result<Vec<u8>, String>)>),
+    fetched: (Sender<Fetched>, Receiver<Fetched>),
     waker: Option<Waker>,
 }
+
+/// A web image's URL and its bytes, or why they couldn't be fetched.
+type Fetched = (String, Result<Vec<u8>, String>);
 
 impl Default for Images {
     fn default() -> Self {
@@ -94,7 +97,7 @@ fn declared_dpi(bytes: &[u8]) -> Option<f32> {
             let kind = &bytes[at + 4..at + 8];
             if kind == b"pHYs" && at + 17 <= bytes.len() {
                 let per_metre = u32::from_be_bytes(bytes[at + 8..at + 12].try_into().ok()?);
-                return (bytes[at + 16] == 1 && per_metre > 0).then(|| per_metre as f32 * 0.0254);
+                return (bytes[at + 16] == 1 && per_metre > 0).then_some(per_metre as f32 * 0.0254);
             }
             if kind == b"IDAT" {
                 return None;
@@ -493,7 +496,7 @@ pub fn view(s: &App, p: &Palette, cx: &mut Cx<App>) -> Vec<El> {
                 if is_image {
                     menu = menu.item(PopupItem::new("copy", "Copy Image"));
                 }
-                tx.popup_menu(menu, press, move |s: &mut App, picked, tx| match picked.as_deref() {
+                tx.popup_menu(menu, press, move |s: &mut App, picked, tx| match picked {
                     Some("open") => open(&source, tx),
                     Some("reveal") => {
                         if let ImageSource::File(path) = &source {

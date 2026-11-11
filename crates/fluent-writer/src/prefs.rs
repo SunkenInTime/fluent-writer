@@ -53,7 +53,8 @@ fn focus_raw(unit: FocusUnit) -> &'static str {
 }
 
 impl Prefs {
-    /// Settings kept only in memory, for tests and headless runs.
+    /// Settings kept only in memory, for tests.
+    #[cfg(test)]
     pub fn in_memory() -> Prefs {
         Prefs { path: None, stored: Stored::default() }
     }

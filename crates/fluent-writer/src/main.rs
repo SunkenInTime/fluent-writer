@@ -12,8 +12,11 @@ mod documents;
 mod footer;
 mod keys;
 mod menubar;
+mod open_picker;
 mod platform;
 mod prefs;
+mod remote_editing;
+mod sidebar;
 mod styler;
 mod substitutions;
 mod theme;
@@ -116,10 +119,7 @@ fn main() {
         min_size: Some((420.0, 320.0)),
         poll: Some(|s, clock, tx| s.poll(clock, tx)),
         on_key: Some(keys::window_key),
-        setup: Some(|s, waker| {
-            s.images.setup(waker.clone());
-            s.notes.set_waker(waker);
-        }),
+        setup: Some(|s, waker| s.set_waker(waker)),
         ..AppSpec::new("Fluent Writer", opening.size, || unreachable!("the app starts from `init`"), view::view)
     })
     .init(move || {

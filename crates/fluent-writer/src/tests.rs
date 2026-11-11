@@ -111,7 +111,7 @@ fn an_image_line_gets_room_under_it_and_dropped_files_are_copied_beside_the_draf
     let png = image::RgbaImage::from_pixel(40, 20, image::Rgba([200, 30, 30, 255]));
     png.save(&source).unwrap();
     rt.update(|s, tx| {
-        assert!(s.insert_images(&[source.clone()], None, None, tx));
+        assert!(s.insert_images(std::slice::from_ref(&source), None, None, tx));
     });
     settle(&mut rt, 0.2);
     assert_eq!(rt.state.edit.text, "Before.\n![My Shot](images/My%20Shot.png)");

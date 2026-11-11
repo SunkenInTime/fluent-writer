@@ -369,6 +369,11 @@ impl App {
         match command {
             C::Quit | C::Close => self.quit(tx),
             C::About => self.show_alert(crate::ui::Alert::new(crate::app_name()).informative("Version 0.2.0 (2)")),
+            C::OpenDraftPicker => self.open_picker(),
+            C::OpenFolder => self.open_folder_dialog(tx),
+            C::OpenOverSsh => self.open_over_ssh(),
+            C::ToggleSidebar => self.toggle_sidebar(tx),
+            C::RecentFiles => self.show_sidebar(crate::sidebar::Mode::Recent, tx),
             C::NewDraft => self.new_draft(tx),
             C::OpenOtherFile => self.browse_for_file(tx),
             C::SaveAs => self.save_as(tx, None),

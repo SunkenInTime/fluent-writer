@@ -51,10 +51,13 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .child(crate::find::view(s, &p, &f))
         .child(top_bar)
         .child(crate::footer::view(s, &p, opacity, fade))
+        .children(crate::sidebar::view(s, &p, &f))
         .children(menu_titles)
         .children(crate::chrome::view(s, &p, &chrome, opacity, fade))
         .children(menus)
-        .child(crate::comment_composer::view(s, &p));
+        .child(crate::comment_composer::view(s, &p))
+        .children(crate::open_picker::view(s, &p))
+        .children(crate::remote_editing::view(s, &p));
     if let Some(alert) = crate::ui::alert_view(s, &p) {
         root = root.child(alert);
     }

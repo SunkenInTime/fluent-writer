@@ -7,8 +7,9 @@ use writer_core::FocusUnit;
 use crate::app::{App, FOOTER_HEIGHT, SaveState, focus_name};
 use crate::theme::{CHARACTER_WIDTH_EM, Palette, ui_font};
 
-/// The status line for a file edited over SSH. The SSH port fills this in; `None` falls back
-/// to the local statuses. Its strings are, with `<host>` the host without `user@`:
+/// The status line for a file edited over SSH, from [`App::remote_status`] in
+/// `remote_editing.rs`; `None` falls back to the local statuses. Its strings are, with `<host>`
+/// the host without `user@`:
 /// "Saved to <host>", "Saved locally · not yet on <host>", "Saving to <host>…",
 /// "Offline · editing the local copy", and, as a warning with the message as its tooltip and
 /// the chrome kept up, "Not on <host> yet — <message>". Its tooltip is the remote location.
@@ -33,11 +34,6 @@ impl App {
             SaveState::Recovered => ("Recovered unsaved changes".into(), false),
             SaveState::Failed(m) => (format!("Not saved — {m}"), true),
         }
-    }
-
-    /// See [`RemoteStatus`].
-    pub fn remote_status(&self) -> Option<RemoteStatus> {
-        None
     }
 
     /// Updates the status tooltip as the Swift `updateStatus` did: the file's path once saved,
