@@ -32,6 +32,7 @@ mod paths;
 
 pub use app_variant::AppVariant;
 pub use atomic_file::FileWriteError;
+pub use error::describe_io;
 pub use document_notes::{
     AssistExchange, Comment, CommentReply, DocumentNotes, DraftVersion, InboxCommand,
     InboxCommandKind, InboxResult, LiveState, NotesStore, VersionKind,

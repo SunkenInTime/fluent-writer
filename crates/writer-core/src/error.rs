@@ -77,7 +77,7 @@ impl From<std::io::Error> for Error {
 }
 
 /// An io error's reason without Rust's " (os error N)" suffix.
-pub(crate) fn describe_io(e: &std::io::Error) -> String {
+pub fn describe_io(e: &std::io::Error) -> String {
     let s = e.to_string();
     match s.rfind(" (os error ") {
         Some(i) if s.ends_with(')') => s[..i].to_string(),

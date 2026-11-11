@@ -102,11 +102,7 @@ fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
         .on_input_change(|s: &mut App, tx| s.text_did_change(tx))
         .text_highlights(s.image_line_marks())
         .on_input_key(crate::keys::draft_key)
-        .on_input_paste(|s: &mut App, content, tx| {
-            // Text wins when there is any, so pasting from a web page still pastes its words.
-            let png = content.image().filter(|_| content.text().is_empty()).map(|i| i.png().to_vec());
-            png.is_some_and(|png| s.insert_images(&[], Some(&png), None, tx))
-        })
+        .on_input_paste(|s: &mut App, content, tx| s.paste_images(content, tx))
         .on_drop_files(|s: &mut App, files, tx| {
             // The images go in where they were dropped.
             let at = tx.drop_point().and_then(|p| p.text_offset);

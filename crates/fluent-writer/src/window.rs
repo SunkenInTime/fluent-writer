@@ -32,6 +32,9 @@ pub struct Window {
     pub title: Option<String>,
     /// The first frame centred the window (there was no saved frame), or needn't.
     pub placed: bool,
+    /// The saved frame came from the Swift app, without a scale to place it in pixels: the
+    /// window opens at its size and moves there in points once it reports where it is.
+    place_on_open: bool,
 }
 
 impl Window {
@@ -47,27 +50,33 @@ pub struct Opening {
     pub size: (f32, f32),
     pub options: rune::WindowOptions,
     pub frame: Option<[f32; 4]>,
+    /// `frame` has no scale (carried over from the Swift app): place it once the window is up.
+    pub place: bool,
 }
 
 pub fn opening(prefs: &Prefs) -> Opening {
-    let default = Opening { size: (1060.0, 760.0), options: rune::WindowOptions::default(), frame: None };
+    let default = Opening { size: (1060.0, 760.0), options: rune::WindowOptions::default(), frame: None, place: false };
     let Some(saved) = prefs.window_frame() else { return default };
     let [x, y, w, h, scale] = saved.map(|v| v as f32);
-    if !(w >= 420.0 && h >= 320.0 && scale > 0.0) {
+    if !(w >= 420.0 && h >= 320.0 && scale >= 0.0) {
         return default;
+    }
+    if scale == 0.0 {
+        return Opening { size: (w, h), options: rune::WindowOptions::default(), frame: Some([x, y, w, h]), place: true };
     }
     // The saved rect is the content's; the window is placed by its outer corner, which the
     // title bar and borders on Windows and Linux push up and left of it.
     let (ox, oy) = prefs.window_decoration().map_or((0.0, 0.0), |o| (o[0] as f32, o[1] as f32));
     let position = (((x - ox) * scale).round() as i32, ((y - oy) * scale).round() as i32);
-    Opening { size: (w, h), options: rune::WindowOptions { position: Some(position), ..Default::default() }, frame: Some([x, y, w, h]) }
+    Opening { size: (w, h), options: rune::WindowOptions { position: Some(position), ..Default::default() }, frame: Some([x, y, w, h]), place: false }
 }
 
 impl App {
     /// The window opened at `frame` (from [`opening`]); its first report checks it landed there.
-    pub fn opened_at(&mut self, frame: Option<[f32; 4]>) {
+    pub fn opened_at(&mut self, frame: Option<[f32; 4]>, place: bool) {
         self.win.opened_at = frame;
         self.win.placed = frame.is_some();
+        self.win.place_on_open = place && frame.is_some();
     }
 
     /// The window became key or stopped being key (`windowDidBecomeKey`, `windowDidResignKey`).
@@ -89,7 +98,18 @@ impl App {
     /// Where the window's content is on screen, in points, at `scale`.
     pub fn screen_frame_changed(&mut self, r: [f32; 4], scale: f32) {
         self.win.frame = Some((r, scale));
+        // Image previews are decoded for the screen the window is on. `ImageBlocks.swift:234`
+        if scale > 0.0 {
+            self.scale = scale;
+        }
         let Some(want) = self.win.opened_at.take() else { return };
+        if std::mem::take(&mut self.win.place_on_open) {
+            if let Some(handle) = HANDLE.get() {
+                handle.place(DisplayTarget::Primary, OverlayPlacement::Rect { x: want[0], y: want[1], width: want[2], height: want[3] });
+            }
+            self.win.frame = Some((want, scale));
+            return;
+        }
         // Off macOS the window is placed by its outer corner. The first report says how far the
         // decorations put the content from it; move once to land exactly, and keep the offset
         // so the next launch opens in place.

@@ -249,7 +249,8 @@ impl App {
     pub fn press_chrome_button(&mut self, b: Button, tx: &mut Tx) {
         match b {
             Button::Sidebar => self.run(Command::ToggleSidebar, tx),
-            Button::AddComment => self.run(Command::AddComment, tx),
+            // A button isn't validated as the menu item is: on an empty draft it beeps.
+            Button::AddComment => self.add_comment_command(tx),
             Button::Comments => self.toggle_panel(PanelTab::Comments, tx),
             Button::Versions => self.toggle_panel(PanelTab::Versions, tx),
             Button::Assist => self.toggle_panel(PanelTab::Ask, tx),

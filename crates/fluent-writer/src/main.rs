@@ -36,6 +36,8 @@ mod tests;
 mod perf_tests;
 #[cfg(test)]
 mod chrome_tests;
+#[cfg(test)]
+mod audit_tests;
 
 use std::path::PathBuf;
 
@@ -72,15 +74,41 @@ fn bare_path() -> Option<PathBuf> {
     None
 }
 
-/// A build run straight from Cargo's target directory uses the dev folders, so trying a change
-/// never touches the drafts you write in.
+/// Which copy of the app this is. `FLUENT_WRITER_VARIANT=standard|dev` says so outright;
+/// otherwise [`variant_for_exe`] reads it from where the executable sits.
 pub(crate) fn variant() -> AppVariant {
-    let from_cargo = std::env::current_exe().ok().is_some_and(|p| p.components().any(|c| c.as_os_str() == "target"));
-    match std::env::var("FLUENT_WRITER_VARIANT").as_deref() {
-        Ok("standard") => AppVariant::Standard,
-        Ok("dev") => AppVariant::Dev,
-        _ if from_cargo => AppVariant::Dev,
-        _ => AppVariant::Standard,
+    static VARIANT: std::sync::OnceLock<AppVariant> = std::sync::OnceLock::new();
+    *VARIANT.get_or_init(|| match std::env::var("FLUENT_WRITER_VARIANT").ok().and_then(|v| v.parse().ok()) {
+        Some(v) => v,
+        None => variant_for_exe(std::env::current_exe().ok().as_deref()),
+    })
+}
+
+/// As the Swift `AppVariant.current`: in a Mac app bundle, `FWVariant` in its Info.plist
+/// (standard when it has none); a build run straight from Cargo's target folder (marked by
+/// its `CACHEDIR.TAG`) is dev, so trying a change never touches the drafts you write in, as
+/// `swift run` was; on a Mac any other unbundled binary is dev too.
+/// `WriterCore/AppVariant.swift:9-13`
+fn variant_for_exe(exe: Option<&std::path::Path>) -> AppVariant {
+    let Some(exe) = exe else { return AppVariant::Standard };
+    let contents = exe.parent().and_then(std::path::Path::parent).filter(|c| c.file_name().is_some_and(|n| n == "Contents"));
+    if let Some(info) = contents.and_then(|c| std::fs::read_to_string(c.join("Info.plist")).ok()) {
+        let raw = prefs::plist_dict(&info).and_then(|d| d.into_iter().find(|(k, _)| k == "FWVariant")).and_then(|(_, v)| match v {
+            prefs::PlistValue::String(s) => s.parse().ok(),
+            _ => None,
+        });
+        return raw.unwrap_or(AppVariant::Standard);
+    }
+    let from_cargo = exe.components().any(|c| c.as_os_str() == "target") || exe.ancestors().skip(1).take(4).any(|d| d.join("CACHEDIR.TAG").is_file());
+    if from_cargo || cfg!(target_os = "macos") { AppVariant::Dev } else { AppVariant::Standard }
+}
+
+/// The bundle identifier the Swift app had, whose `UserDefaults` hold its settings.
+/// `script/build-app.sh:17-21`
+fn bundle_id(variant: AppVariant) -> &'static str {
+    match variant {
+        AppVariant::Standard => "com.sunkenintime.fluentwriter",
+        AppVariant::Dev => "com.sunkenintime.fluentwriter.dev",
     }
 }
 
@@ -97,7 +125,8 @@ fn start() -> Result<(DraftLibrary, Prefs, writer_core::DraftDocument), String> 
         _ => DraftLibrary::default_library(variant()),
     };
     let mut library = library.map_err(|e| e.to_string())?;
-    let prefs = Prefs::load(library.support_directory());
+    // The app's own folders: a Mac that ran the Swift app brings its settings along once.
+    let prefs = if arg("--support").is_some() { Prefs::load(library.support_directory()) } else { Prefs::load_or_import(library.support_directory(), bundle_id(variant())) };
     // `--open <path>` if it opens; else the newest recovered draft that has no file; else a new one.
     let wanted = arg("--open").map(PathBuf::from).or_else(bare_path);
     let opened = wanted.and_then(|p| library.open(&p).ok());
@@ -131,7 +160,7 @@ fn main() {
     .init(move || {
         let mut app = App::new(library, prefs, document);
         app.notes.app_name = app_name;
-        app.opened_at(opening.frame);
+        app.opened_at(opening.frame, opening.place);
         app
     })
     // The title bar is transparent with the content under it; only the top bar drags the window.

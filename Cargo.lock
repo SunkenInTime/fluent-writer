@@ -1002,6 +1002,7 @@ dependencies = [
  "chrono",
  "image",
  "notify",
+ "roxmltree 0.20.0",
  "rune",
  "serde",
  "serde_json",

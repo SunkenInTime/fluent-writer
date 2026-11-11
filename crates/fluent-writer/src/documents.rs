@@ -168,7 +168,9 @@ impl App {
             tx.quit();
             return;
         }
-        // The Assist port stops a running request here, before the leave check.
+        // A running Assist request stops first, even when the check then keeps the app open.
+        // `main.swift:38-42`
+        self.assist_stop();
         self.leave_document(tx, |s, tx| {
             s.documents.quitting = true;
             s.app_will_quit();

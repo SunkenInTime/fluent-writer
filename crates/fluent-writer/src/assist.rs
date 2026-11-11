@@ -146,13 +146,18 @@ impl App {
     }
 
     /// Opening the panel in a narrow window widens it so the draft keeps a usable column: to
-    /// 720 pt, plus the sidebar when it is pinned. Rune keeps the window on its screen and
-    /// skips the animation under Reduce Motion. `ChromeControls.swift:147-157`
+    /// 720 pt, plus the sidebar when it is pinned; not in full screen. Rune keeps the window on
+    /// its screen and skips the animation under Reduce Motion. `ChromeControls.swift:147-157`
     fn make_room_for_panel(&mut self, tx: &mut Tx) {
-        let needed = 720.0 + if self.sidebar_visible { SIDEBAR_WIDTH } else { 0.0 };
-        if self.window.0 < needed {
-            tx.resize_window((needed, self.window.1));
+        if let Some(width) = self.panel_room_needed() {
+            tx.resize_window((width, self.window.1));
         }
+    }
+
+    /// The width opening the panel asks the window for, if it asks.
+    pub fn panel_room_needed(&self) -> Option<f32> {
+        let needed = 720.0 + if self.sidebar_visible { SIDEBAR_WIDTH } else { 0.0 };
+        (!self.win.full_screen && self.window.0 < needed).then_some(needed)
     }
 
     /// Stops any request, hides the panel and gives the keyboard to the version preview or the

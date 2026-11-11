@@ -571,7 +571,7 @@ pub fn set_folder_locked(folder: &std::path::Path, locked: bool) {
         icacls.arg(folder);
         if locked {
             // Deny adding files and folders, deleting children and writing data, here and below.
-            icacls.args(["/deny", &format!("{user}:(OI)(CI)(WD,AD,DC,D)")]);
+            icacls.args(["/deny", &format!("{user}:(OI)(CI)(WD,AD,DC,DE)")]);
         } else {
             icacls.args(["/remove:d", &user]);
         }

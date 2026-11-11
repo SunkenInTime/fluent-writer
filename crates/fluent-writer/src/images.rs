@@ -189,7 +189,14 @@ impl Images {
         }
         let (tx, waker, url) = (self.fetched.0.clone(), self.waker.clone(), url.to_string());
         std::thread::spawn(move || {
-            let result = ureq::get(&url).call().map_err(|e| e.to_string()).and_then(|mut r| r.body_mut().with_config().limit(64 << 20).read_to_vec().map_err(|e| e.to_string()));
+            // An error page is data that isn't an image, as URLSession hands it over.
+            let result = ureq::get(&url)
+                .config()
+                .http_status_as_error(false)
+                .build()
+                .call()
+                .map_err(|e| e.to_string())
+                .and_then(|mut r| r.body_mut().with_config().limit(64 << 20).read_to_vec().map_err(|e| e.to_string()));
             let _ = tx.send((url, result));
             if let Some(w) = waker {
                 w();
@@ -341,7 +348,7 @@ impl App {
             Ok(())
         };
         if let Err(e) = save() {
-            self.flash_message(format!("Couldn't save the image: {e}"), tx);
+            self.flash_message(format!("Couldn't save the image: {}", writer_core::describe_io(&e)), tx);
             if snippets.is_empty() {
                 return true;
             }
@@ -368,6 +375,18 @@ impl App {
         let how = if copied > 0 { "copied to the images folder beside this draft" } else { "linked where it already is" };
         self.flash_message(format!("{what} · {how}"), tx);
         true
+    }
+
+    /// A paste into the draft: image files on the clipboard go in as images; otherwise text
+    /// wins when there is any, so pasting from a web page still pastes its words, and image
+    /// data alone goes in as a pasted image. False lets the text paste happen.
+    /// `ImageBlocks.swift:300-310`
+    pub fn paste_images(&mut self, content: &rune::ClipboardContent, tx: &mut Tx) -> bool {
+        if self.insert_images(content.files(), None, None, tx) {
+            return true;
+        }
+        let png = content.image().filter(|_| content.text().is_empty()).map(|i| i.png().to_vec());
+        png.is_some_and(|png| self.insert_images(&[], Some(&png), None, tx))
     }
 
     /// Format › Image…: pick one or more image files to insert, in the order the dialog gives
@@ -523,4 +542,42 @@ pub fn view(s: &App, p: &Palette, cx: &mut Cx<App>) -> Vec<El> {
         out.push(frame);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A server's error page is data that isn't an image, as URLSession hands it over: "Not an
+    /// image", not a network failure. `ImageBlocks.swift:283`
+    #[test]
+    fn an_error_page_is_not_an_image() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 1024];
+            let _ = stream.read(&mut buf);
+            let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\nConnection: close\r\n\r\nNot found");
+        });
+        let mut images = Images::default();
+        images.setup(std::sync::Arc::new(|| {}));
+        let url = format!("http://127.0.0.1:{port}/a.png");
+        images.fetch(&url);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !images.failed.contains_key(&url) && std::time::Instant::now() < deadline {
+            images.poll();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        assert_eq!(images.failed.get(&url).map(String::as_str), Some("Not an image · 127.0.0.1"));
+        // An address nothing answers is a network failure.
+        let closed = "http://127.0.0.1:9/b.png".to_string();
+        images.fetch(&closed);
+        while !images.failed.contains_key(&closed) && std::time::Instant::now() < deadline {
+            images.poll();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        assert_eq!(images.failed.get(&closed).map(String::as_str), Some("Couldn't load image from 127.0.0.1"));
+    }
 }
