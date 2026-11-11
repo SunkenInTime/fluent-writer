@@ -35,3 +35,20 @@ when it is closed and checked.
   message either.
 - Linux: Rune has no spell checker there.
 - No grammar checking on any platform (Rune has none).
+
+## Windows (checked on a real PC at a9c1d6f)
+- Typing in a 10,000-word draft sometimes stalls for many seconds: the first runs took 30 s
+  to catch up after 300 characters at 12 a second, later runs 1 to 2 s. No characters are
+  lost. Not yet explained; the Windows spell checker running over the whole draft on each
+  edit is the first thing to rule out (Linux has none, so the timing test there can't see it).
+- A context menu opened from the keyboard (Menu key, Shift+F10) appears at the window's
+  lower-left corner, not at the caret. The cause is in Rune (`context_menu_key` anchors at
+  the focused element's corner).
+- Ctrl+Alt+M (Add Comment) did not open the composer with real key events, while
+  Ctrl+Alt+O worked. Not yet explained: Ctrl+Alt is AltGr on Windows, or another program
+  may hold the chord.
+- The system beep was requested but not confirmed by ear.
+- One test (`opening_from_the_sidebar_or_the_picker_runs_the_leave_check`) fails because the
+  `icacls` deny rule the tests use to block saves also blocks listing the folder.
+- Folder and file dialogs can't show a custom button label or message (the system dialog
+  has no way to set them through the library Rune uses).
