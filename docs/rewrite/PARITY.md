@@ -49,7 +49,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [x] Mouse-moved events are delivered to the window (needed for chrome reveal and sidebar peek). `EditorController.swift:149`
 - [x] Window title (used by the Window menu, Mission Control and accessibility) is the draft title. `EditorController.swift:356`, `EditorController.swift:440`
 - [ ] Window `representedURL` is the draft's file for local files and nil for remote files and unsaved drafts. **(AppKit built-in: Window-menu/proxy behaviour of representedURL)** `EditorController.swift:355`, `EditorController.swift:441` — *Rust: Rune has no API for a window's represented file (proxy icon).*
-- [x] Closing the window first runs the leave-document check (save, or ask if the save failed); cancelling keeps the window open. `EditorController.swift:841-843` — *Rust: Rune can't refuse a close: the window hides, the check runs, and when it asks the window comes back with the alert; Keep Editing leaves it open. Checked in a real X11 window.*
+- [x] Closing the window first runs the leave-document check (save, or ask if the save failed); cancelling keeps the window open. `EditorController.swift:841-843` — *Rust: `App::on_close_request` runs the check before anything hides; when it asks, the window stays up as it was with the alert, Keep Editing leaves it open and Continue quits. Test: `a_refused_close_keeps_the_window_up_with_the_alert`. The new flow was not run in a real window (the hide-then-reopen flow it replaces was checked in X11).*
 - [x] When the window closes, the app quits. `EditorController.swift:845-847`, `main.swift:48`
 - [ ] Full screen via View › Enter Full Screen (⌃⌘F); entering and leaving full screen re-lays out the window. **(AppKit built-in: full screen itself)** `MainMenu.swift:131`, `EditorController.swift:838-839` — *Rust: Wired to `Tx::toggle_full_screen` (F11 off macOS), title follows; not observed in a real window.*
 - [x] In full screen the traffic lights are hidden by the system. **(AppKit built-in)** — *Rust: The system's.*
@@ -147,7 +147,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] With any focus mode on (Sentence, Paragraph, Typewriter) vertical inset = `max(40, round(visibleHeight / 2 − lineHeight / 2))` and no extra bottom space, so the first and last lines can reach the middle. `EditorController.swift:302-304`
 - [ ] Text view is at least as tall as the visible area. `EditorController.swift:311`, `EditorTextView.swift:23`
 - [ ] The selection is preserved across any relayout. `EditorController.swift:294`, `EditorController.swift:315`
-- [ ] Text colour `text`; selection background `selection` (no selected-text colour change). `MarkdownStyler.swift:54`, `EditorController.swift:176`
+- [ ] Text colour `text`; selection background `selection` (no selected-text colour change). `MarkdownStyler.swift:54`, `EditorController.swift:176` — Rewrite: while another field has the keyboard or the window isn't key, the selection stays drawn in AppKit's `unemphasizedSelectedTextBackgroundColor` (220,220,220 / 70,70,70) through `SelectionStyle::unfocused` and `inactive`, as an `NSTextView` that isn't first responder draws it; checked in snapshots with the comment composer open.
 - [ ] Links get no special link attributes (not clickable as links). `EditorController.swift:177`
 - [ ] Editor background is transparent over `canvas`. `EditorController.swift:170`
 - [ ] Caret: filled rounded rect (radius 1) in `caret`, width `max(2, round(fontSize / 9))`, height `round(naturalLineHeight × 1.12)`, vertically centred in the line. `EditorController.swift:283-285`, `EditorTextView.swift:71-89`
@@ -158,9 +158,9 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] Changing text size keeps the selection, re-centres the caret in focus modes (otherwise scrolls the selection into view), and flashes "Text size N pt". `Commands.swift:129-138`
 - [ ] Layout is contiguous (whole document laid out), font leading not used. `EditorController.swift:102-103`
 - [ ] Text input: IME/marked text, dead keys, emoji picker, dictation. **(AppKit built-in)** — Rewrite: IME, dead keys and composition are Rune's (`edit/ime.rs`); the emoji picker and dictation are the system's and reach the draft as IME commits on macOS and Windows. Not checked by hand on either.
-- [ ] Standard text navigation and selection keys (arrows, ⌥/⌘ arrows, ⇧ extend, Home/End, Page Up/Down, Emacs ⌃A/⌃E/⌃K etc.), double-click word, triple-click paragraph, drag-select, drag-to-move selected text. **(AppKit built-in)** — Rewrite: arrows, ⇧ extend, ⌥/⌘ arrows (Ctrl off macOS), word/line deletion, Page Up/Down, ⌃B ⌃F ⌃N ⌃P ⌃D ⌃H, double-click word, triple-click paragraph and drag-select are Rune's; ⌃A ⌃E (paragraph), ⌃K/⌃Y kill and yank, ⌃T, ⌃O, ⌃L, ⌥↑/⌥↓ (Ctrl+↑/↓ elsewhere), Home/End scrolling and Escape keeping focus are built in `editing.rs`. Tests: `word_and_line_keys_follow_the_platform`, `paragraph_keys_move_by_paragraph`, `double_and_triple_click_select_a_word_and_a_paragraph_and_drag_selects`, `escape_keeps_the_keyboard_in_the_draft`. Not done: drag-to-move selected text (Rune has no text drag source or drop target in a field); ⌘⌫ deletes to the paragraph's start, not the visual line's; ⌥←/→ word stops follow white space only, where AppKit also stops at punctuation; ⌃V/⌥PageUp caret paging.
+- [ ] Standard text navigation and selection keys (arrows, ⌥/⌘ arrows, ⇧ extend, Home/End, Page Up/Down, Emacs ⌃A/⌃E/⌃K etc.), double-click word, triple-click paragraph, drag-select, drag-to-move selected text. **(AppKit built-in)** — Rewrite: arrows, ⇧ extend, ⌥/⌘ arrows (Ctrl off macOS), word/line deletion, Page Up/Down, ⌃B ⌃F ⌃N ⌃P ⌃D ⌃H, double-click word, triple-click paragraph and drag-select are Rune's; ⌃A ⌃E (paragraph), ⌃K/⌃Y kill and yank, ⌃T, ⌃O, ⌃L, ⌥↑/⌥↓ (Ctrl+↑/↓ elsewhere), Home/End scrolling and Escape keeping focus are built in `editing.rs`. Tests: `word_and_line_keys_follow_the_platform`, `paragraph_keys_move_by_paragraph`, `double_and_triple_click_select_a_word_and_a_paragraph_and_drag_selects`, `escape_keeps_the_keyboard_in_the_draft`. ⌥←/→ and ⌥⌫ stop at Unicode word boundaries as AppKit's do (`TextEdit::word_motion(WordMotion::Unicode)` on every field; test `word_keys_stop_at_word_boundaries_as_appkit_does`). Not done: drag-to-move selected text (Rune has no text drag source or drop target in a field); ⌘⌫ deletes to the paragraph's start, not the visual line's; ⌃V/⌥PageUp caret paging.
 - [x] Undo/redo with typing coalescing; undo history cleared when a document loads. **(AppKit built-in for the stack)** `EditorController.swift:160`, `EditorController.swift:328` — Rewrite: Rune coalesces a typing run until the caret moves; a new draft gets a new `TextEdit`. Tests: `typing_coalesces_until_the_caret_moves`, `loading_a_draft_clears_the_undo_history`.
-- [ ] Undo menu titles name the action ("Undo Typing", "Undo Bold", …) from the action names the app sets. **(AppKit built-in titles)** `EditorController.swift:767` — Rewrite: blocked: Rune's `TextEdit` history keeps no action names, so menus can only say Undo/Redo.
+- [x] Undo menu titles name the action ("Undo Typing", "Undo Bold", …) from the action names the app sets. **(AppKit built-in titles)** `EditorController.swift:767` — Rewrite: `App::apply` makes each edit a named step (`TextEdit::undo_group_named`); the in-window Edit menu reads "Undo <name>" / "Redo <name>" from the focused field and disables them with nothing to undo or redo. Rune names typing "Typing" and its paste and cut "Paste" and "Cut". Names AppKit gives its own edits, which the Swift doesn't set, are the rewrite's choice and not checked on a Mac: ⌃K ⌃Y ⌃T ⌃O and substitutions "Typing", find bar "Replace" and "Replace All", Edit › Cut "Cut". Test: `undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do`. The macOS menu bar is the native-menu work.
 - [ ] Dragging text in and out of the editor, and dropping text from other apps. **(AppKit built-in)** — Rewrite: blocked: Rune fields have no text drag out, and drops are files only (`on_drop_files`).
 - [x] Continuous spell checking on by default (preference). `EditorController.swift:163` — Rewrite: preference defaults on and drives `El::spellcheck`; the draft's menu also has Rune's Spellcheck toggle. Rune checks on macOS and Windows only; Linux has no checker. Test: `check_spelling_while_typing_is_on_by_default_and_toggles`.
 - [x] Automatic spelling correction off at launch. `EditorController.swift:164` — Rewrite: Rune has no automatic correction, so it is always off.
@@ -192,7 +192,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] Italic (`*x*`, `_x_`): italic face; delimiters `markup`. `MarkdownStyler.swift:128-129`
 - [ ] Bold italic (`***x***`): bold italic face (bold and italic combine with any existing trait). `MarkdownStyler.swift:113-121`, `WriterCore/Markdown.swift:235-242`
 - [ ] Strikethrough (`~~x~~`): single strikethrough in `quiet` over the content (not the delimiters); delimiters `markup`. `MarkdownStyler.swift:130-132`
-- [ ] Inline code (backtick runs): `codeBackground` behind the whole span including backticks; backticks `markup`. Nothing inside code is styled as emphasis. `MarkdownStyler.swift:133-134`, `WriterCore/Markdown.swift:207-213`
+- [ ] Inline code (backtick runs): `codeBackground` behind the whole span including backticks; backticks `markup`. Nothing inside code is styled as emphasis. `MarkdownStyler.swift:133-134`, `WriterCore/Markdown.swift:207-213` — Rewrite: the background fills the line's whole height, square, as `.backgroundColor` does (`Span::line_bg`; test `backgrounds_fill_the_line_height`, light and dark snapshots).
 - [ ] Links `[text](url)` and images `![alt](url)`: link text underlined (single, `markup` colour); `[`, `](`, `)` and the URL coloured `markup`. `MarkdownStyler.swift:135-138`
 - [ ] Link text may carry emphasis. `WriterCore/Markdown.swift:221-222`
 - [ ] Autolinks `<https://…>` / `<mailto:…>` and bare URLs (`http://`, `https://`, `www.`): underlined in `markup`; angle brackets `markup`. `MarkdownStyler.swift:139-141`
@@ -350,7 +350,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [x] Remote status tooltip is the remote location (`host:path` or `ssh://host:port/path`). `EditorController.swift:454`
 - [x] `<host>` in remote statuses is the host without `user@`. `WriterCore/Remote.swift:48`
 - [ ] Transient messages replace the status for 2.2 s, then the status returns. `EditorController.swift:491-501`
-- [ ] Every transient message is announced to VoiceOver at medium priority. `EditorController.swift:495`
+- [ ] Every transient message is announced to VoiceOver at medium priority. `EditorController.swift:495` — *Rust: `Tx::announce` (a polite announcement) in `flash_message`; test `a_flash_gets_its_own_width_and_returns_to_the_status`. Not checked with a screen reader.*
 
 ---
 
@@ -388,7 +388,7 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### Edit
 
-- [x] "Undo" ⌘Z. **(AppKit built-in, with action names)** `MainMenu.swift:55` — Rewrite: through the draft's own history; from a menu, `App::run_menu` sends it to whichever field has focus. Action names: see Undo menu titles above.
+- [x] "Undo" ⌘Z. **(AppKit built-in, with action names)** `MainMenu.swift:55` — Rewrite: through the draft's own history; from a menu, `App::run_menu` sends it to whichever field has focus. Titled "Undo <name>" and disabled with nothing to undo: see Undo menu titles above.
 - [x] "Redo" ⇧⌘Z. **(AppKit built-in)** `MainMenu.swift:56`
 - [ ] separator `MainMenu.swift:57`
 - [x] "Cut" ⌘X. **(AppKit built-in)** `MainMenu.swift:58` — Rewrite: Test: `cut_copy_and_paste_go_through_the_clipboard`.
@@ -403,7 +403,7 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 - [x] Find › "Find Previous" ⇧⌘G. **(AppKit built-in)** `MainMenu.swift:68`
 - [x] Find › "Use Selection for Find" ⌘E. **(AppKit built-in)** `MainMenu.swift:69` — Rewrite: Test: `use_selection_for_find_then_find_next`.
 - [x] Find › "Jump to Selection" ⌥⌘J — scrolls the selection to the centre. **(AppKit built-in)** `MainMenu.swift:70` — Rewrite: no shortcut (see Oddities). Test: `jump_to_selection_centres_it`.
-- [x] Find bar: Done button, match count, Esc closes, Return/⇧Return next/previous, replace and replace-all, case and contains/starts-with options. **(AppKit built-in)** — Rewrite: count reads "2 of 13", "13 matches" or "Not found"; Replace replaces the selected match and moves to the next, each one undo step; Replace All is one step and reports "N replaced". Tests: `replace_replaces_the_match_and_moves_on_as_one_undo_step`, `replace_all_is_one_undo_step_and_reports_the_count`. Snapshots of the bar in light and dark were checked.
+- [x] Find bar: Done button, match count, Esc closes, Return/⇧Return next/previous, replace and replace-all, case and contains/starts-with options. **(AppKit built-in)** — Rewrite: matches fill the line's whole height, square (`TextHighlight::line_bg`), as AppKit lights them; the current match keeps the app's rounded ring (test `find_matches_fill_the_line_height`). Count reads "2 of 13", "13 matches" or "Not found"; Replace replaces the selected match and moves to the next, each one undo step; Replace All is one step and reports "N replaced". Tests: `replace_replaces_the_match_and_moves_on_as_one_undo_step`, `replace_all_is_one_undo_step_and_reports_the_count`. Snapshots of the bar in light and dark were checked.
 - [ ] Spelling and Grammar › "Show Spelling and Grammar" ⌘: (shift-semicolon) — spelling panel. **(AppKit built-in)** `MainMenu.swift:73` — Rewrite: blocked: Rune has no spelling panel. Left out of the menu rather than shown disabled.
 - [ ] Spelling and Grammar › "Check Document Now" ⌘; — jumps to the next misspelling. **(AppKit built-in)** `MainMenu.swift:74` — Rewrite: blocked: needs Rune to make `spell::misspelled(text)` public so the app can select the next misspelled word.
 - [ ] separator `MainMenu.swift:75`
@@ -481,8 +481,8 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 ### Editor context menu (right-click in the text)
 
 - [x] First item "Comment on Selection…" when text is selected, else "Comment on This Line…" → Add Comment. `EditorController.swift:774-776` — *Rust: Native pop-up via `tx.popup_menu`; drawn in the app where Rune has none (Linux).*
-- [ ] When the click is on a commented passage: that comment becomes active and a "Show Comment" item opens the Comments tab. `EditorController.swift:777-780` — *Rust: The comments port's; marked in `context_rows`.*
-- [ ] Then a separator, then the standard text-view menu: spelling suggestions, Look Up, Translate, Search With Google, Cut/Copy/Paste, Share, Spelling and Grammar, Substitutions, Transformations, Speech, Services. **(AppKit built-in)** `EditorController.swift:781-786` — *Rust: Cut, Copy, Paste and Check Spelling While Typing. Rune's own field menu (spelling suggestions) can't be extended with app items, so it is replaced.*
+- [x] When the click is on a commented passage: that comment becomes active and a "Show Comment" item opens the Comments tab. `EditorController.swift:777-780` — *Rust: `App::draft_menu_items` (native menus) and `context_rows` (Linux). Tests: `the_drafts_own_menu_puts_the_comment_items_first`, `right_clicking_a_commented_passage_offers_show_comment`.*
+- [ ] Then a separator, then the standard text-view menu: spelling suggestions, Look Up, Translate, Search With Google, Cut/Copy/Paste, Share, Spelling and Grammar, Substitutions, Transformations, Speech, Services. **(AppKit built-in)** `EditorController.swift:781-786` — *Rust: on macOS and Windows the menu is the field's own (`El::input_menu`): the app's items, a separator, then Rune's spelling suggestions and Learn Spelling, Cut, Copy, Paste (Select All off macOS) and the Spellcheck toggle; no Look Up, Translate, Share, Substitutions, Transformations, Speech or Services. Linux has no native menus: the app draws Cut, Copy, Paste and Check Spelling While Typing. Opened from the keyboard (Menu key, Shift+F10) the menu appears at the draft's bottom-left, not at the caret (see GAPS). Not seen on a Mac or Windows machine.*
 
 ---
 
@@ -497,7 +497,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] With a selection directly surrounded by the delimiters: removes them and keeps the text selected. `WriterCore/TextEditing.swift:158-164`
 - [ ] A single `*` only counts as a delimiter when it isn't half of `**` (a `***` run counts). `WriterCore/TextEditing.swift:175-190`
 - [ ] Otherwise wraps the selection, keeping leading/trailing spaces outside the delimiters, and keeps the wrapped text selected. `WriterCore/TextEditing.swift:165-172`
-- [ ] Undo names: "Bold", "Italic", "Strikethrough". `Commands.swift:90-92`
+- [x] Undo names: "Bold", "Italic", "Strikethrough". `Commands.swift:90-92` — *Rust: tested (`undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do`, `format_image_inserts_several_images_as_one_step`).*
 - [ ] Link with no selection: inserts `[]()` with the caret inside `[]`. `WriterCore/TextEditing.swift:210-212`
 - [ ] Link with a selection starting `http://`, `https://` or `www.`: `[](<selection>)` with the caret inside `[]`. `WriterCore/TextEditing.swift:213-215`
 - [ ] Link with other selected text: `[<selection>]()` with the caret inside `()`. `WriterCore/TextEditing.swift:216-217`
@@ -507,14 +507,14 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Body removes any block prefix. `WriterCore/TextEditing.swift:252-253`
 - [ ] Blank lines inside a multi-line selection are left as they are. `WriterCore/TextEditing.swift:247-250`
 - [ ] Caret-only: caret moves by the prefix length change; with a selection, the whole rewritten block is selected. `WriterCore/TextEditing.swift:263`, `WriterCore/TextEditing.swift:267-272`
-- [ ] Undo names: "Heading", "Body", "Bulleted List", "Numbered List", "Blockquote". `Commands.swift:102-108`
+- [x] Undo names: "Heading", "Body", "Bulleted List", "Numbered List", "Blockquote". `Commands.swift:102-108` — *Rust: tested (`undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do`, `format_image_inserts_several_images_as_one_step`).*
 - [ ] Indent (⌘] or Tab in a list item): adds two spaces before every list item line touched; non-list lines unchanged; nothing happens (Tab inserts a tab) if no touched line is a list item. `Commands.swift:110-112`, `EditorController.swift:743-747`, `WriterCore/TextEditing.swift:68-109`
 - [ ] Outdent (⌘[ or Shift-Tab in a list item): removes up to two leading spaces, or one leading tab, from each list item line. `Commands.swift:114-116`, `EditorController.swift:748-752`, `WriterCore/TextEditing.swift:82-89`
-- [ ] Undo names "Indent", "Outdent". `Commands.swift:111`, `Commands.swift:115`
+- [x] Undo names "Indent", "Outdent". `Commands.swift:111`, `Commands.swift:115` — *Rust: tested (`undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do`, `format_image_inserts_several_images_as_one_step`).*
 - [ ] Return in a bullet, numbered, task or quote line (caret after the marker, no selection) continues it: same indent plus same bullet character; next number with the same `.`/`)`; task as `<bullet> [ ] `; quote with the same `>` marker. `EditorController.swift:738-742`, `WriterCore/TextEditing.swift:24-66`
 - [ ] Return on an item with no text removes the marker and indent (ends the list). `WriterCore/TextEditing.swift:38-42`
 - [ ] Spaces right before the caret are dropped when continuing a list. `WriterCore/TextEditing.swift:60-62`
-- [ ] Undo name "Typing" for list continuation. `EditorController.swift:740`
+- [x] Undo name "Typing" for list continuation. `EditorController.swift:740` — *Rust: tested (`undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do`, `format_image_inserts_several_images_as_one_step`).*
 - [ ] Copy for Twitter (⇧⌘C): copies the selection, or the whole draft, as plain text; flashes "Copied selection as plain text · <n> characters" or "Copied draft as plain text · <n> characters" (number grouped, grapheme count). `Commands.swift:70-82`
 - [ ] Plain-text export: headings, quotes and paragraphs lose their markers; bullets and tasks become "• "; numbered items keep "N. "/"N) "; indentation becomes two spaces per level (tab = 4 spaces); fences dropped; code-block lines kept as is; rules become blank lines; runs of blank lines collapse to one; trailing blank lines removed. `WriterCore/PlainTextExporter.swift:9-46`
 - [ ] Plain-text inline rules: delimiters removed; images removed; links become "label (url)", or just the url when the label is empty, equals the url, or starts with "http"; backslash escapes removed (not when the line has code). `WriterCore/PlainTextExporter.swift:59-113`
@@ -568,7 +568,7 @@ All format commands apply through the text system as one undo step with the name
 - [x] Listing error: message is the error text, ".." row kept. `Sidebar.swift:247-249` — Rust: local errors use Foundation's wording ("The folder “x” doesn’t exist.").
 - [x] Remote folder: shows "Loading <host>…" while listing in the background; a stale listing result (after navigating or reloading) is ignored. `Sidebar.swift:219-235`
 - [x] Only the root folder is persisted (local path or remote location); subfolder navigation is not. `Preferences.swift:48-63`, `Sidebar.swift:96`, `Sidebar.swift:293-297`
-- [x] File › Open Folder… (⌥⌘O): folder-only open panel as a sheet, button "Open Folder", message "Choose a folder to list its Markdown and text files in the sidebar.", starting in the current local root; on OK pins the sidebar and shows the folder. `RemoteEditing.swift:78-92` — Rust: Rune's `FileDialogOptions` has a title only, so the button can't read "Open Folder" and the message is passed as the title.
+- [x] File › Open Folder… (⌥⌘O): folder-only open panel as a sheet, button "Open Folder", message "Choose a folder to list its Markdown and text files in the sidebar.", starting in the current local root; on OK pins the sidebar and shows the folder. `RemoteEditing.swift:78-92` — Rust: `FileDialogOptions::prompt` and `message`, shown on the Mac's panel; the Linux portal takes the button label but has no message, and Windows shows neither, so the message is also the dialog's title there. Test: `open_folder_names_its_button_and_explains_itself`. Not seen in a real dialog.
 - [x] The "Open Folder…" button in the sidebar runs the same command. `Sidebar.swift:308`
 
 ### Peek
@@ -673,8 +673,8 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Paste (⌘V) with image files on the clipboard, or image data (PNG/TIFF) and no text, inserts images; if there's any text on the clipboard the text is pasted instead. `EditorTextView.swift:28-31`, `ImageBlocks.swift:300-310`
 - [ ] Dragging image files or PNG/TIFF data onto the text shows a copy cursor and inserts at the drop point. `EditorTextView.swift:39-59`
 - [ ] Image file extensions: png, jpg, jpeg, gif, heic, heif, webp, tiff, tif, bmp, svg. `WriterCore/MarkdownImages.swift:15`
-- [ ] Format › Image… (⇧⌘I): open panel as a sheet, those image types, multiple selection, message "Images are copied into an images folder next to this draft." `ImageBlocks.swift:361-374`
-- [ ] While a version preview is showing, adding an image beeps and does nothing. `ImageBlocks.swift:311`
+- [x] Format › Image… (⇧⌘I): open panel as a sheet, those image types, multiple selection, message "Images are copied into an images folder next to this draft." `ImageBlocks.swift:361-374` — *Rust: `Tx::open_files` with the message (also the title off the Mac, where Windows and the Linux portal show no message). Test: `format_image_inserts_several_images_as_one_step`. Not seen in a real dialog.*
+- [x] While a version preview is showing, adding an image beeps and does nothing. `ImageBlocks.swift:311` — *Rust: `Tx::beep`; test `the_preview_beeps_at_typing_and_at_images`.*
 - [ ] Remote drafts: flashes "Images can't be added to files opened over SSH yet". `ImageBlocks.swift:312-315`
 - [ ] A file already inside the draft's folder (any depth) is linked by relative path, not copied. `ImageBlocks.swift:323-326`, `WriterCore/MarkdownImages.swift:47-52`
 - [ ] Other files are copied into `images/` beside the draft (created if needed), renamed "name 2.ext", "name 3.ext" … if taken. `ImageBlocks.swift:327-331`, `WriterCore/MarkdownImages.swift:70-80`
@@ -682,7 +682,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Alt text from a file name: extension dropped, runs of `-`/`_` become a space, trimmed. `WriterCore/MarkdownImages.swift:64-67`
 - [ ] Markdown inserted is `![alt](path)` with the path percent-encoded (spaces and parentheses escaped) and `[`/`]`/newlines removed from alt. `WriterCore/MarkdownImages.swift:55-61`
 - [ ] Several images are separated by a blank line; a blank line is added before/after when the insertion point isn't already at a line start/end; the caret goes after the inserted text. `ImageBlocks.swift:347-352`
-- [ ] Undo name "Insert Image" or "Insert Images". `ImageBlocks.swift:353-354`
+- [x] Undo name "Insert Image" or "Insert Images". `ImageBlocks.swift:353-354` — *Rust: tested (`undo_and_redo_name_the_step_and_are_disabled_with_nothing_to_do`, `format_image_inserts_several_images_as_one_step`).*
 - [ ] Flash "Image added · copied to the images folder beside this draft" / "<n> images added · …", or "… · linked where it already is" when nothing was copied. `ImageBlocks.swift:356-357`
 - [ ] Copy failure flashes "Couldn't save the image: <reason>"; images already handled are still inserted. `ImageBlocks.swift:342-345`
 
@@ -768,7 +768,7 @@ All format commands apply through the text system as one undo step with the name
 
 ## 15. Comments
 
-- [x] Add Comment (⌥⌘M, toolbar, Comments tab button, context menu): target is the selection, or the current line when nothing is selected, trimmed of surrounding whitespace; beeps if empty. `CommentComposer.swift:118-126`, `CommentComposer.swift:138-140` Built in `comment_composer.rs` and `notes.rs` (`App::add_comment_command`); the toolbar, Comments-tab and context-menu entry points call it from their own modules. Rune has no system beep: beeps are counted in `Notes::beeps`.
+- [x] Add Comment (⌥⌘M, toolbar, Comments tab button, context menu): target is the selection, or the current line when nothing is selected, trimmed of surrounding whitespace; beeps if empty. `CommentComposer.swift:118-126`, `CommentComposer.swift:138-140` Built in `comment_composer.rs` and `notes.rs` (`App::add_comment_command`); the toolbar, Comments-tab and context-menu entry points call it from their own modules. The beep is `Tx::beep` (the system alert sound; tests count `Runtime::beeps`).
 - [x] Adding a comment while previewing a version closes the preview first. `CommentComposer.swift:139`
 - [x] The target text is selected and scrolled into view; chrome shown with no auto-hide. `CommentComposer.swift:142-144`
 - [x] Composer popover, 320×150, transient (closes on click outside), animated, anchored to the first character of the target. `CommentComposer.swift:27-30`, `CommentComposer.swift:93-96`, `CommentComposer.swift:129-136` Drawn in the app (card, arrow, shadow) since Rune has no popover. Not done: the open and close animation. The card uses `card` and `hairline` in place of AppKit's popover material.
@@ -781,8 +781,8 @@ All format commands apply through the text system as one undo step with the name
 - [x] Saving trims whitespace; empty body beeps and keeps the popover open. `CommentComposer.swift:100-107`
 - [x] After saving a new comment: caret moves to the end of the commented text, the comment becomes active, and the footer flashes "<n> open comment(s) · ⇧⌘M to review and send". `CommentComposer.swift:145-154` The shortcut in the flash is the platform's ("Ctrl+Shift+M" off the Mac).
 - [x] Comments are author "you", ordered by position. `NotesController.swift:117-128`
-- [x] Open, attached comments are highlighted with `commentHighlight` behind the text; the active one with `commentHighlightActive`. Display-only colour. `NotesController.swift:162-171` Drawn with `Span::bg`, which shifts with IME preedit (`El::text_highlight` does not). Rune draws span backgrounds as rounded boxes around the glyphs, not AppKit's square full-line-height fill.
-- [x] Comments follow their text as it is edited; a comment whose text is deleted becomes detached (no highlight). `NotesController.swift:65-75` Rune reports no edited range, so `notes::edit_between` works it out from the text before and after, the selection before the edit and the caret after; `App::apply` passes its exact range.
+- [x] Open, attached comments are highlighted with `commentHighlight` behind the text; the active one with `commentHighlightActive`. Display-only colour. `NotesController.swift:162-171` Drawn with `Span::line_bg`, which fills the line's whole height, square, as AppKit does, and shifts with IME preedit (`El::text_highlight` does not). Checked in light and dark snapshots. Rune paints it over the selection, where AppKit's selection covers it (see GAPS).
+- [x] Comments follow their text as it is edited; a comment whose text is deleted becomes detached (no highlight). `NotesController.swift:65-75` The draft's `TextEdit` reports each change (`report_changes` / `take_changes`): typing, paste, cut, undo and redo (as the exact inverse of each edit they take back), IME commits and the app's own edits. Test: `undoing_edits_on_both_sides_of_a_comment_keeps_it_in_place`.
 - [x] A detached open comment re-attaches when its quoted text reappears (e.g. after undo). `NotesController.swift:98-107`
 - [x] Comments re-anchor by their quote when a draft is opened. `NotesController.swift:43-44`
 - [x] Comments tab: "Add Comment" small button top-left (tooltip "Comment on the selection or the current line (⌥⌘M)"); "Show resolved" small checkbox top-right, IBM Plex Mono 11 pt, hidden when there are no resolved comments. `AssistController.swift:263-269`, `AssistController.swift:351-355`, `AssistController.swift:492` The tooltip and the empty text name the platform's shortcut (Ctrl+Alt+M off the Mac).
@@ -832,7 +832,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Title and detail hidden when their width is under 48 pt; when under 140 pt the bar's tooltip shows title and detail. `VersionPreview.swift:150-152` **Not ticked:** Built; not checked at those widths.
 - [x] Diff text uses the same column and horizontal inset as the editor, 40 pt top/bottom inset, 35% extra bottom space, no typewriter centring. `VersionPreview.swift:154-161`
 - [x] Diff is word-level between the current draft and the version, with Markdown styling applied to the combined text. `VersionPreview.swift:242-270`
-- [x] Inserted text: `inserted` colour on `insertedBackground`. `VersionPreview.swift:276-277`
+- [x] Inserted text: `inserted` colour on `insertedBackground`. `VersionPreview.swift:276-277` The tints of both fill the line's whole height, square (`Span::line_bg`); checked in light and dark snapshots.
 - [x] Deleted text: `deleted` colour on `deletedBackground`, struck through in `deleted`. `VersionPreview.swift:278-282`
 - [x] Line breaks inside changes are not painted. `VersionPreview.swift:306-320`
 - [x] A space is added between a deletion and the insertion that follows when neither side has whitespace at the join. `VersionPreview.swift:251-254`
@@ -842,7 +842,7 @@ All format commands apply through the text system as one undo step with the name
 - [x] Keys in the preview: ← older, → newer, Esc back to the draft, Return/keypad Enter use; other keys behave normally. `VersionPreview.swift:6-20`
 - [x] Timeline: versions oldest → newest, then your draft. ← from the draft opens the newest version; ← at the oldest beeps; → at the newest returns to the draft; → while not previewing beeps. `VersionPreview.swift:166-226`
 - [x] Older/Newer/Use are also ⌥⌘←/⌥⌘→/⌥⌘↩ from anywhere. `MainMenu.swift:145-147`
-- [ ] Opening a preview announces "Previewing <label>. Left and right arrows switch versions, Return uses it, Escape goes back." `VersionPreview.swift:185-188` **Not ticked:** Built as a polite live region (Rune has no announcement request); not checked with a screen reader.
+- [ ] Opening a preview announces "Previewing <label>. Left and right arrows switch versions, Return uses it, Escape goes back." `VersionPreview.swift:185-188` **Not ticked:** Built with `Tx::announce` (test `opening_a_preview_is_announced`); not checked with a screen reader.
 - [ ] Diff accessibility: label "Version preview", value = the version's full text, help "Inserted text is green, removed text is struck through." `VersionPreview.swift:78`, `VersionPreview.swift:302-303` **Not ticked:** Set (`label`, `a11y_value`, `description`); not checked with a screen reader.
 - [x] Preview re-renders when the draft or version list changes; closes if its version is deleted. `VersionPreview.swift:205-210`, `EditorController.swift:121-125`
 - [x] Closing the preview shows the editor again and focuses it. `VersionPreview.swift:191-202`
@@ -950,7 +950,7 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Image previews: role image, label alt text or "Image". `ImageBlocks.swift:101-102`, `ImageBlocks.swift:212`
 - [ ] Preview: bar role toolbar "Version preview"; diff "Version preview" with value and help; position "Version <n> of <total>"; chevrons described by their tooltips. `VersionPreview.swift:78`, `VersionPreview.swift:96`, `VersionPreview.swift:121-122`, `VersionPreview.swift:297`, `VersionPreview.swift:302-303`
 - [x] Every footer flash is announced (medium priority). `EditorController.swift:495`
-- [ ] Opening a version preview is announced. `VersionPreview.swift:185-188`
+- [ ] Opening a version preview is announced. `VersionPreview.swift:185-188` — *Rust: `Tx::announce`; not checked with a screen reader.*
 - [ ] All animations (chrome fade, scroll, peek, window widen) respect Reduce Motion. `EditorController.swift:604`, `EditorController.swift:634`, `EditorController.swift:683`, `ChromeControls.swift:156`, `ChromeControls.swift:220`, `ChromeControls.swift:240`
 - [ ] VoiceOver text navigation, rotor and keyboard access in standard controls. **(AppKit built-in)**
 
