@@ -236,6 +236,127 @@ pub fn view(s: &App, p: &Palette) -> Option<El> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sidebar::tests::{app_with, click, run};
+    use crate::tests::{command, settle, type_text};
+    use rune::{Mods, Runtime};
+
+    fn titles(s: &App) -> Vec<String> {
+        s.picker.rows().map(|d| d.title.clone()).collect()
+    }
+
+    fn press(rt: &mut Runtime<App>, key: Key) {
+        crate::tests::press(rt, key, Mods::default());
+        rt.frame(1.0 / 60.0);
+    }
+
+    const FILES: &[(&str, &str)] = &[("Morning.md", "Morning\n\nA walk by the river"), ("Letter.md", "Letter\n\nDear Sam"), ("List.md", "List\n\n- eggs")];
+
+    #[test]
+    fn opens_with_the_second_row_selected_and_the_search_focused() {
+        let (mut rt, _dir) = app_with(FILES);
+        type_text(&mut rt, "!");
+        command(&mut rt, 'o', false, false);
+        settle(&mut rt, 0.1);
+        let s = &rt.state;
+        assert!(s.picker.open);
+        // Opening saved the draft first.
+        assert_eq!(s.status().0, "Saved");
+        assert_eq!(titles(s), ["Morning", "Letter", "List"]);
+        assert_eq!(s.picker.selected, Some(1));
+        assert!(s.picker.query.focused);
+        let el = |k: &str| rt.elements().into_iter().find(|e| e.key.as_deref() == Some(k)).unwrap();
+        let sheet = el("picker").rect;
+        assert_eq!((sheet[2], sheet[3]), (520.0, 420.0));
+        let list = el(LIST).rect;
+        assert_eq!((list[0] - sheet[0], list[1] - sheet[1], list[2]), (8.0, 48.0, 504.0));
+        assert_eq!(list[1] + list[3], sheet[1] + 420.0 - 14.0 - 21.0 - 12.0);
+        assert_eq!(el("picker-row-0").rect[3], 50.0);
+        let label = el("picker-row-0").label.unwrap();
+        assert!(label.starts_with("Morning, ") && label.ends_with(" ago"), "{label}");
+        let open = el("picker-open").rect;
+        assert_eq!(open[0] + open[2], sheet[0] + 520.0 - 16.0);
+        assert_eq!(open[1] + open[3], sheet[1] + 420.0 - 14.0);
+    }
+
+    #[test]
+    fn typing_filters_and_arrows_move_the_selection() {
+        let (mut rt, _dir) = app_with(FILES);
+        command(&mut rt, 'o', false, false);
+        type_text(&mut rt, " LI ");
+        assert_eq!(titles(&rt.state), ["List"]);
+        assert_eq!(rt.state.picker.selected, Some(0));
+        // The preview counts too, without its first line.
+        rt.update(|s, tx| {
+            s.picker.query.replace_text("RIVER");
+            s.picker_changed(tx);
+        });
+        assert_eq!(titles(&rt.state), ["Morning"]);
+        // With an empty query and the open draft first, the second row is chosen again.
+        rt.update(|s, tx| {
+            s.picker.query.replace_text("");
+            s.picker_changed(tx);
+        });
+        assert_eq!(rt.state.picker.selected, Some(1));
+        press(&mut rt, Key::Down);
+        press(&mut rt, Key::Down);
+        assert_eq!(rt.state.picker.selected, Some(2));
+        press(&mut rt, Key::Up);
+        press(&mut rt, Key::Up);
+        press(&mut rt, Key::Up);
+        assert_eq!(rt.state.picker.selected, Some(0));
+        type_text(&mut rt, "zzz");
+        assert!(rt.state.picker.shown.is_empty());
+        assert_eq!(rt.state.picker.empty_message(), "No matching drafts");
+        assert!(rt.find("picker-empty").is_some());
+        press(&mut rt, Key::Enter);
+        assert!(rt.state.picker.open, "Return with nothing selected does nothing");
+    }
+
+    #[test]
+    fn return_opens_after_the_sheet_closes_and_escape_cancels() {
+        let (mut rt, dir) = app_with(FILES);
+        command(&mut rt, 'o', false, false);
+        press(&mut rt, Key::Escape);
+        assert!(!rt.state.picker.open);
+        assert_eq!(rt.state.edit.text, "Morning\n\nA walk by the river");
+        command(&mut rt, 'o', false, false);
+        crate::tests::press(&mut rt, Key::Enter, Mods::default());
+        assert!(!rt.state.picker.open);
+        assert_eq!(rt.state.draft.path(), Some(dir.path().join("drafts/Morning.md").as_path()), "runs on the next frame");
+        rt.frame(1.0 / 60.0);
+        assert_eq!(rt.state.draft.path(), Some(dir.path().join("drafts/Letter.md").as_path()));
+    }
+
+    #[test]
+    fn double_click_opens_and_new_draft_makes_one() {
+        let (mut rt, dir) = app_with(FILES);
+        command(&mut rt, 'o', false, false);
+        let (x, y) = rt.find("picker-row-2").unwrap();
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(1.0 / 60.0);
+        assert_eq!(rt.state.picker.selected, Some(2));
+        assert!(rt.state.picker.open);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        settle(&mut rt, 0.1);
+        assert_eq!(rt.state.draft.path(), Some(dir.path().join("drafts/List.md").as_path()));
+
+        command(&mut rt, 'o', false, false);
+        click(&mut rt, "picker-new");
+        assert!(!rt.state.picker.open);
+        assert_eq!(rt.state.draft.path(), None);
+        assert!(rt.state.edit.text.is_empty());
+    }
+
+    #[test]
+    fn with_no_drafts_it_says_so() {
+        let (mut rt, _dir) = app_with(&[]);
+        run(&mut rt, Command::OpenDraftPicker);
+        assert_eq!(rt.state.picker.empty_message(), "No drafts yet");
+        assert_eq!(rt.state.picker.selected, None);
+    }
 
     #[test]
     fn relative_dates_read_like_the_short_style() {

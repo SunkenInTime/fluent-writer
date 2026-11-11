@@ -65,6 +65,7 @@ pub struct Leaving {
 // MARK: Uploader
 
 struct Job {
+    ssh: SshTransport,
     now: bool,
     doc: DraftDocument,
     body: String,
@@ -93,15 +94,15 @@ impl Uploader {
         Uploader { in_flight: false, queued: None, jobs: None, done: Arc::default(), waker: Arc::default() }
     }
 
-    fn send(&mut self, ssh: &SshTransport, job: Job) {
+    fn send(&mut self, job: Job) {
         if self.jobs.is_none() {
             let (send, receive) = channel::<Job>();
-            let (ssh, done, waker) = (ssh.clone(), self.done.clone(), self.waker.clone());
+            let (done, waker) = (self.done.clone(), self.waker.clone());
             std::thread::Builder::new()
                 .name("fluent-writer-upload".into())
                 .spawn(move || {
                     for job in receive {
-                        let result = ssh.write(job.body.as_bytes(), &job.loc).map_err(|e| e.to_string());
+                        let result = job.ssh.write(job.body.as_bytes(), &job.loc).map_err(|e| e.to_string());
                         done.lock().unwrap().push(Done { now: job.now, doc: job.doc, body: job.body, result });
                         if let Some(w) = waker.lock().unwrap().as_ref() {
                             w();
@@ -121,14 +122,14 @@ impl Uploader {
             return;
         }
         self.in_flight = true;
-        self.send(ssh, Job { now: false, doc, body, loc });
+        self.send(Job { ssh: ssh.clone(), now: false, doc, body, loc });
     }
 
     /// Uploads `body` once any running upload is done, dropping what was queued.
     fn upload_now(&mut self, ssh: &SshTransport, doc: DraftDocument, body: String) {
         let Some(loc) = doc.remote().cloned() else { return };
         self.queued = None;
-        self.send(ssh, Job { now: true, doc, body, loc });
+        self.send(Job { ssh: ssh.clone(), now: true, doc, body, loc });
     }
 
     /// Whether an upload is running or waiting.
@@ -191,11 +192,6 @@ impl Remote {
     /// An ssh call this module started is still running.
     pub fn is_busy(&self) -> bool {
         self.reads.is_pending() || self.checks.is_pending() || self.uploader.busy() || self.leaving.is_some()
-    }
-
-    /// A sheet of this module is up.
-    pub fn sheet_open(&self) -> bool {
-        self.prompting || self.alert.is_some() || self.leaving.is_some()
     }
 }
 
@@ -601,4 +597,313 @@ pub fn button(p: &Palette, key: &str, label: &str, default: bool) -> El {
 /// The bezel around a single-line text field.
 pub fn field_box(p: &Palette, field: El) -> El {
     el().fill(p.card).border(1.0, p.hairline).radius(5.0).px(6.0).items_center().child(field)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::Command;
+    use crate::sidebar::tests::{app_with, click, run, wait_for};
+    use crate::tests::{settle, type_text};
+    use rune::{Key, Mods, Runtime};
+
+    /// The test server: `FLUENT_WRITER_SSH_TEST_DIR=host:/folder` it may write in, and
+    /// `FLUENT_WRITER_SSH_TEST_SSH` / `FLUENT_WRITER_SSH_TEST_SSH_DOWN`, programs that run ssh
+    /// against it and against a closed port. Without them these tests do nothing.
+    struct Server {
+        host: String,
+        dir: String,
+        ssh: String,
+        down: String,
+    }
+
+    fn server(name: &str) -> Option<Server> {
+        let (Ok(spec), Ok(ssh), Ok(down)) = (std::env::var("FLUENT_WRITER_SSH_TEST_DIR"), std::env::var("FLUENT_WRITER_SSH_TEST_SSH"), std::env::var("FLUENT_WRITER_SSH_TEST_SSH_DOWN")) else {
+            eprintln!("skipped: set FLUENT_WRITER_SSH_TEST_DIR, FLUENT_WRITER_SSH_TEST_SSH and FLUENT_WRITER_SSH_TEST_SSH_DOWN");
+            return None;
+        };
+        let (host, base) = spec.split_once(':').expect("host:/folder");
+        let s = Server { host: host.into(), dir: format!("{base}/{name}-{}", std::process::id()), ssh, down };
+        s.sh(&format!("rm -rf '{0}' && mkdir -p '{0}/notes/sub'", s.dir));
+        Some(s)
+    }
+
+    impl Server {
+        fn sh(&self, command: &str) -> String {
+            let out = std::process::Command::new(&self.ssh).args(["-o", "BatchMode=yes", &self.host, command]).output().unwrap();
+            assert!(out.status.success(), "{command}: {}", String::from_utf8_lossy(&out.stderr));
+            String::from_utf8(out.stdout).unwrap()
+        }
+        fn put(&self, path: &str, body: &str) {
+            SshTransport::new(&self.ssh, 10).write(body.as_bytes(), &self.loc(path)).unwrap();
+        }
+        fn get(&self, path: &str) -> String {
+            self.sh(&format!("cat '{}/{path}'", self.dir))
+        }
+        fn loc(&self, path: &str) -> RemoteLocation {
+            RemoteLocation::new(self.host.clone(), None, format!("{}/{path}", self.dir))
+        }
+        fn up(&self) -> SshTransport {
+            SshTransport::new(&self.ssh, 10)
+        }
+        fn down(&self) -> SshTransport {
+            SshTransport::new(&self.down, 10)
+        }
+    }
+
+    impl Drop for Server {
+        fn drop(&mut self) {
+            let _ = std::process::Command::new(&self.ssh).args(["-o", "BatchMode=yes", &self.host, &format!("rm -rf '{}'", self.dir)]).output();
+        }
+    }
+
+    fn status(rt: &Runtime<App>) -> String {
+        rt.state.status().0
+    }
+
+    /// Types `text` into the SSH prompt and presses Return.
+    fn ssh_prompt(rt: &mut Runtime<App>, text: &str) {
+        run(rt, Command::OpenOverSsh);
+        assert!(rt.state.remote.prompting);
+        rt.update(|s, _| s.remote.field.replace_text(text));
+        crate::tests::press(rt, Key::Enter, Mods::default());
+        rt.frame(1.0 / 60.0);
+    }
+
+    #[test]
+    fn the_prompt_checks_the_location_and_remembers_it() {
+        let (mut rt, _dir) = app_with(&[("One.md", "One")]);
+        ssh_prompt(&mut rt, "no colon here");
+        assert!(!rt.state.remote.prompting);
+        let alert = rt.state.remote.alert.clone().expect("an alert");
+        assert_eq!(alert.title, "That doesn't look like an SSH location.");
+        assert_eq!(alert.text, "Use host:path, user@host:path, or ssh://user@host:port/path.");
+        assert_eq!(rt.state.prefs.last_ssh_location(), "");
+        click(&mut rt, "alert-ok");
+        assert!(rt.state.remote.alert.is_none());
+        for bad in ["-oProxyCommand=x:/a", "ho st:/a", "h;rm:/a", ":/a"] {
+            ssh_prompt(&mut rt, bad);
+            assert!(rt.state.remote.alert.take().is_some(), "{bad} is refused");
+        }
+        // A valid location is remembered and comes back selected next time.
+        rt.update(|s, _| s.remote.ssh = SshTransport::new("/nonexistent/ssh", 10));
+        ssh_prompt(&mut rt, "me@box:~/notes");
+        assert_eq!(rt.state.transient.as_deref(), Some("Connecting to box…"));
+        assert_eq!(rt.state.prefs.last_ssh_location(), "me@box:~/notes");
+        wait_for(&mut rt, "the failed check", |s| s.remote.alert.is_some());
+        assert!(rt.state.remote.alert.as_ref().unwrap().title.starts_with("Couldn't start ssh: "));
+        rt.state.remote.alert = None;
+        run(&mut rt, Command::OpenOverSsh);
+        assert_eq!(rt.state.remote.field.text, "me@box:~/notes");
+        assert_eq!(rt.state.remote.field.range(), (0, 14));
+        let el = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("ssh-field")).unwrap();
+        assert_eq!(el.label.as_deref(), Some("SSH location"));
+        click(&mut rt, "ssh-cancel");
+        assert!(!rt.state.remote.prompting);
+    }
+
+    #[test]
+    fn ssh_folder_file_save_offline_and_leaving() {
+        let Some(srv) = server("round-trip") else { return };
+        srv.put("notes/draft.md", "# Remote draft\n\nWritten on the server.");
+        srv.put("notes/other.txt", "other");
+        let (mut rt, dir) = app_with(&[("Local.md", "Local")]);
+        rt.update(|s, _| s.remote.ssh = srv.up());
+        let host = srv.host.clone();
+
+        // A folder: the sidebar pins and lists it over ssh.
+        ssh_prompt(&mut rt, &format!("{host}:{}/notes", srv.dir));
+        assert_eq!(rt.state.transient.as_deref(), Some(format!("Connecting to {host}…").as_str()));
+        wait_for(&mut rt, "the folder check", |s| !s.sidebar.folder_stack.is_empty());
+        assert!(rt.state.sidebar_visible);
+        assert_eq!(rt.state.sidebar.message.as_deref(), Some(format!("Loading {host}…").as_str()));
+        wait_for(&mut rt, "the listing", |s| s.sidebar.message.is_none());
+        let titles: Vec<String> = rt.state.sidebar.items.iter().map(|i| i.title.clone()).collect();
+        assert_eq!(titles, ["sub", "draft.md", "other.txt"]);
+        assert_eq!(rt.state.sidebar.header(), "notes");
+        assert_eq!(rt.state.prefs.folder_remote(), Some(srv.loc("notes").display().as_str()));
+
+        // A file in it: read over ssh into the local copy.
+        click(&mut rt, "sidebar-row-1");
+        assert_eq!(rt.state.transient.as_deref(), Some(format!("Opening draft.md from {host}…").as_str()));
+        wait_for(&mut rt, "the remote file", |s| s.draft.remote().is_some());
+        let loc = srv.loc("notes/draft.md");
+        assert_eq!(rt.state.draft.remote(), Some(&loc));
+        assert_eq!(rt.state.edit.text, "# Remote draft\n\nWritten on the server.");
+        assert_eq!(rt.state.draft.title, "draft.md");
+        let mirror = rt.state.library.mirror_path(&loc);
+        assert!(mirror.starts_with(dir.path().join("support/Remote").join(&host).join("root")));
+        rt.state.transient = None;
+        assert_eq!(status(&rt), format!("Saved to {host}"));
+        assert_eq!(rt.state.remote_status_help(), Some(loc.display()));
+        assert!(!rt.state.command_enabled(Command::Reveal));
+
+        // Saving writes the copy, then uploads.
+        rt.update(|s, tx| {
+            s.edit.set_selection(s.edit.text.len(), s.edit.text.len());
+            s.focus_draft(tx);
+        });
+        rt.frame(1.0 / 60.0);
+        type_text(&mut rt, " Edited here.");
+        settle(&mut rt, 0.85);
+        assert_eq!(status(&rt), format!("Saving to {host}…"));
+        assert_eq!(std::fs::read_to_string(&mirror).unwrap(), "# Remote draft\n\nWritten on the server. Edited here.");
+        wait_for(&mut rt, "the upload", |s| s.remote.status == RemoteStatus::Uploaded);
+        assert_eq!(status(&rt), format!("Saved to {host}"));
+        assert_eq!(srv.get("notes/draft.md"), "# Remote draft\n\nWritten on the server. Edited here.");
+        assert!(!rt.state.draft.remote_upload_pending());
+
+        // Saves while an upload runs: only the newest waits, and it is what lands.
+        for word in [" one", " two", " three"] {
+            rt.update(|s, tx| {
+                let end = s.edit.text.len();
+                s.edit.set_selection(end, end);
+                s.edit.insert(word);
+                s.text_did_change(tx);
+                s.flush();
+            });
+        }
+        assert!(rt.state.remote.uploader.in_flight);
+        assert!(rt.state.remote.uploader.queued.as_ref().is_some_and(|(_, body)| body.ends_with("one two three")));
+        wait_for(&mut rt, "the queued upload", |s| !s.remote.uploader.busy() && s.remote.status == RemoteStatus::Uploaded);
+        assert!(srv.get("notes/draft.md").ends_with("Edited here. one two three"));
+
+        // The server goes away: saves stay local and the footer says so.
+        rt.update(|s, _| s.remote.ssh = srv.down());
+        type_text(&mut rt, "!");
+        wait_for(&mut rt, "the failed upload", |s| matches!(s.remote.status, RemoteStatus::Failed(_)));
+        let (text, warning) = rt.state.status();
+        assert!(text.starts_with(&format!("Not on {host} yet — {host}: ssh: connect to host 127.0.0.1 port 22230")), "{text}");
+        assert!(warning && rt.state.chrome_visible);
+        assert!(rt.state.draft.remote_upload_pending());
+        rt.state.remote.status = RemoteStatus::Idle;
+        assert_eq!(status(&rt), format!("Saved locally · not yet on {host}"));
+
+        // Leaving with edits not on the server: a waiting sheet, then the warning.
+        run(&mut rt, Command::NewDraft);
+        assert!(rt.state.remote.leaving.is_some());
+        assert!(rt.find("leave-wait").is_some());
+        wait_for(&mut rt, "the leave warning", |s| s.remote.alert.is_some());
+        let alert = rt.state.remote.alert.clone().unwrap();
+        assert_eq!(alert.title, format!("Your latest edits aren't on {host} yet."));
+        assert!(alert.text.ends_with("\n\nThey're saved on this Mac and will be sent the next time you open this file."));
+        click(&mut rt, "alert-keep");
+        assert_eq!(rt.state.draft.remote(), Some(&loc), "Keep Editing stays");
+        run(&mut rt, Command::NewDraft);
+        wait_for(&mut rt, "the leave warning", |s| s.remote.alert.is_some());
+        click(&mut rt, "alert-continue");
+        assert_eq!(rt.state.draft.remote(), None, "Continue leaves");
+        assert!(rt.state.edit.text.is_empty());
+
+        // Offline, a file opened before opens from its local copy.
+        run(&mut rt, Command::RecentFiles);
+        let row = rt.state.sidebar.items.iter().position(|i| i.remote.as_ref() == Some(&loc)).expect("the remote file is in Recent");
+        assert_eq!(rt.state.sidebar.items[row].subtitle.as_deref(), Some(loc.display().as_str()));
+        click(&mut rt, &crate::sidebar::row_key(row));
+        wait_for(&mut rt, "the offline open", |s| s.draft.remote().is_some());
+        rt.state.transient = None;
+        assert_eq!(status(&rt), "Offline · editing the local copy");
+        assert!(rt.state.edit.text.ends_with("three!"));
+
+        // Back online, opening it again keeps the edits that never arrived and sends them.
+        run(&mut rt, Command::NewDraft);
+        wait_for(&mut rt, "leaving", |s| s.remote.alert.is_some() || s.draft.remote().is_none());
+        if rt.state.remote.alert.is_some() {
+            click(&mut rt, "alert-continue");
+        }
+        srv.put("notes/draft.md", "changed on the server meanwhile");
+        rt.update(|s, tx| {
+            s.remote.ssh = srv.up();
+            s.open_remote(loc.clone(), tx);
+        });
+        wait_for(&mut rt, "the reopen", |s| s.draft.remote().is_some());
+        assert_eq!(rt.state.transient.as_deref(), Some(format!("Kept your edits that hadn't reached {host}").as_str()));
+        assert!(rt.state.edit.text.ends_with("three!"));
+        wait_for(&mut rt, "the catch-up upload", |s| s.remote.status == RemoteStatus::Uploaded);
+        assert!(srv.get("notes/draft.md").ends_with("three!"));
+
+        // Leaving right after an edit waits for the upload, then goes on by itself.
+        type_text(&mut rt, "?");
+        rt.update(|s, tx| s.leave_then(Then::NewDraft, tx));
+        assert!(rt.state.remote.leaving.is_some());
+        wait_for(&mut rt, "leaving", |s| s.draft.remote().is_none());
+        assert!(rt.state.remote.alert.is_none());
+        assert!(srv.get("notes/draft.md").ends_with("three!?"));
+
+        // The Open picker fetches the server's copy of a remote file, as the sidebar does.
+        srv.put("notes/draft.md", "newest from the server");
+        run(&mut rt, Command::OpenDraftPicker);
+        let i = rt.state.picker.rows().position(|d| d.remote.as_ref() == Some(&loc)).expect("listed");
+        rt.update(|s, tx| {
+            s.picker.selected = Some(i);
+            s.picker_choose_selected(tx);
+        });
+        wait_for(&mut rt, "the picker's open", |s| s.draft.remote().is_some());
+        assert_eq!(rt.state.edit.text, "newest from the server");
+
+        // Opening the open remote file again only focuses it.
+        rt.state.transient = None;
+        rt.update(|s, tx| s.open_remote(loc.clone(), tx));
+        assert_eq!(rt.state.transient, None);
+    }
+
+    #[test]
+    fn ssh_failures_read_as_the_swift_wrote_them() {
+        let Some(srv) = server("failures") else { return };
+        let (mut rt, _dir) = app_with(&[("Local.md", "Local")]);
+        rt.update(|s, _| s.remote.ssh = srv.up());
+        let missing = srv.loc("nothing-here.md");
+        ssh_prompt(&mut rt, &missing.display());
+        wait_for(&mut rt, "the alert", |s| s.remote.alert.is_some());
+        assert_eq!(rt.state.remote.alert.take().unwrap().title, format!("Nothing at {}.", missing.display()));
+
+        ssh_prompt(&mut rt, "fwstranger:/tmp");
+        wait_for(&mut rt, "the alert", |s| s.remote.alert.is_some());
+        assert_eq!(rt.state.remote.alert.take().unwrap().title, "fwstranger isn't a known host yet. Run `ssh fwstranger` in Terminal once to trust it.");
+
+        ssh_prompt(&mut rt, "fwbadkey:/tmp");
+        wait_for(&mut rt, "the alert", |s| s.remote.alert.is_some());
+        assert_eq!(rt.state.remote.alert.take().unwrap().title, "fwbadkey refused the login. Fluent Writer can't type passwords, so use an SSH key or ssh-agent (ssh-copy-id fwbadkey).");
+
+        // A remote folder that can't be listed shows the error and keeps "..".
+        srv.put("notes/sub/a.md", "a");
+        rt.update(|s, _| s.set_sidebar_folder(crate::sidebar::FolderRoot::Remote(srv.loc("notes"))));
+        rt.update(|s, tx| {
+            if !s.sidebar_visible {
+                s.toggle_sidebar(tx);
+            }
+        });
+        wait_for(&mut rt, "the listing", |s| s.sidebar.message.is_none() && !s.sidebar.items.is_empty());
+        srv.sh(&format!("rm -rf '{}/notes/sub'", srv.dir));
+        click(&mut rt, "sidebar-row-0");
+        wait_for(&mut rt, "the failed listing", |s| s.sidebar.message.as_deref().is_some_and(|m| !m.starts_with("Loading")));
+        let message = rt.state.sidebar.message.clone().unwrap();
+        assert!(message.starts_with(&format!("{}: ", srv.host)) && message.contains("sub"), "{message}");
+        assert_eq!(rt.state.sidebar.items.len(), 1);
+
+        // A listing that lands after the sidebar moved on is dropped.
+        rt.update(|s, _| s.set_sidebar_folder(crate::sidebar::FolderRoot::Remote(srv.loc("notes"))));
+        rt.update(|s, _| s.set_sidebar_mode(crate::sidebar::Mode::Recent));
+        for _ in 0..60 {
+            rt.frame(1.0 / 60.0);
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let titles: Vec<String> = rt.state.sidebar.items.iter().map(|i| i.title.clone()).collect();
+        assert_eq!(titles, ["Local"]);
+
+        // A never-opened file that can't be read is an error, not an offline copy.
+        rt.update(|s, tx| {
+            s.remote.ssh = srv.down();
+            s.open_remote(srv.loc("notes/new.md"), tx);
+        });
+        wait_for(&mut rt, "the alert", |s| s.remote.alert.is_some());
+        assert!(rt.state.remote.alert.take().unwrap().title.contains("Connection refused"));
+        assert_eq!(rt.state.draft.remote(), None);
+
+        // The home folder is named after the host.
+        rt.update(|s, _| s.remote.ssh = srv.up());
+        ssh_prompt(&mut rt, &format!("{}:", srv.host));
+        wait_for(&mut rt, "the home folder", |s| s.sidebar.folder_stack.first().is_some_and(|r| matches!(r, crate::sidebar::FolderRoot::Remote(l) if l.path == "~")));
+        assert_eq!(rt.state.sidebar.header(), format!("{} ~", srv.host));
+    }
 }

@@ -106,11 +106,11 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 
 ### Sidebar button
 
-- [ ] SF Symbol `sidebar.left`, label "Toggle sidebar", tooltip "Show or hide the sidebar (⌃⌘S). Point at the left edge to peek." `EditorController.swift:77`
-- [ ] Placed 12 pt right of the zoom (green) traffic light, vertically centred on it; in full screen at x 12, y 8. Size 28×24. `ChromeControls.swift:121-128`
-- [ ] Always drawn above the sidebar panel. `ChromeControls.swift:129-132`
-- [ ] Active (caret tint and plate) while the sidebar is pinned. `ChromeControls.swift:143`
-- [ ] Click toggles the sidebar; if the sidebar is peeking, click pins it instead. `RemoteEditing.swift:49-62`, `ChromeControls.swift:249-258`
+- [x] SF Symbol `sidebar.left`, label "Toggle sidebar", tooltip "Show or hide the sidebar (⌃⌘S). Point at the left edge to peek." `EditorController.swift:77` — Rust: drawn as a vector icon (`sidebar.rs` SIDEBAR_LEFT).
+- [x] Placed 12 pt right of the zoom (green) traffic light, vertically centred on it; in full screen at x 12, y 8. Size 28×24. `ChromeControls.swift:121-128` — Rust: x is `titlebar_inset + 12`, or 12 with no traffic lights; y is always 8 (the top bar already assumes a 20 pt centre line). Centring on the real traffic lights waits for the window-chrome work.
+- [x] Always drawn above the sidebar panel. `ChromeControls.swift:129-132`
+- [x] Active (caret tint and plate) while the sidebar is pinned. `ChromeControls.swift:143`
+- [x] Click toggles the sidebar; if the sidebar is peeking, click pins it instead. `RemoteEditing.swift:49-62`, `ChromeControls.swift:249-258`
 
 ### Title field position
 
@@ -272,7 +272,7 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 
 - [ ] Before replacing the open draft (New, Open, open over SSH, sidebar click, close, quit) the app saves; if the save fails it shows a warning alert: title "This draft couldn't be saved.", text "<message>\n\nA recovery copy is kept and will be offered next time.", buttons "Keep Editing" (default), "Save As…", "Continue". `EditorController.swift:385-400`
 - [ ] Keep Editing cancels; Save As… runs Save As and proceeds only if it succeeds; Continue proceeds. `EditorController.swift:395-399`
-- [ ] For remote files with edits not yet uploaded, the leave check also uploads synchronously (see SSH). `EditorController.swift:387`, `RemoteEditing.swift:194-211`
+- [x] For remote files with edits not yet uploaded, the leave check also uploads synchronously (see SSH). `EditorController.swift:387`, `RemoteEditing.swift:194-211` — Rust: uploads off the UI thread behind a "Saving to <host>…" sheet with Keep Editing (owner-approved fix of oddity 10).
 - [ ] Quitting stops any running Assist request, then runs the leave check; cancel aborts the quit. `main.swift:38-42`
 - [ ] On quit the open draft's comments/versions are flushed to disk and the live-state file is deleted. `main.swift:44-46`, `NotesController.swift:254-257`
 
@@ -342,13 +342,13 @@ Colours are sRGB 0–255 from `Theme.swift`, written `light / dark`. Alpha is gi
 - [ ] Status "Edited" while a save is pending. `EditorController.swift:475-477`
 - [ ] Status "Recovered unsaved changes". `EditorController.swift:478-480`
 - [ ] Status "Not saved — <message>" in `warning`. `EditorController.swift:481-485`
-- [ ] Remote, uploaded: "Saved to <host>". `EditorController.swift:457`
-- [ ] Remote, saved locally but not uploaded: "Saved locally · not yet on <host>". `EditorController.swift:457`
-- [ ] Remote, uploading: "Saving to <host>…". `EditorController.swift:459-461`
-- [ ] Remote, server unreachable at open: "Offline · editing the local copy". `EditorController.swift:462-464`
-- [ ] Remote, upload failed: "Not on <host> yet — <message>" in `warning`, tooltip the message, chrome kept visible. `EditorController.swift:465-469`
-- [ ] Remote status tooltip is the remote location (`host:path` or `ssh://host:port/path`). `EditorController.swift:454`
-- [ ] `<host>` in remote statuses is the host without `user@`. `WriterCore/Remote.swift:48`
+- [x] Remote, uploaded: "Saved to <host>". `EditorController.swift:457`
+- [x] Remote, saved locally but not uploaded: "Saved locally · not yet on <host>". `EditorController.swift:457`
+- [x] Remote, uploading: "Saving to <host>…". `EditorController.swift:459-461`
+- [x] Remote, server unreachable at open: "Offline · editing the local copy". `EditorController.swift:462-464`
+- [x] Remote, upload failed: "Not on <host> yet — <message>" in `warning`, tooltip the message, chrome kept visible. `EditorController.swift:465-469`
+- [x] Remote status tooltip is the remote location (`host:path` or `ssh://host:port/path`). `EditorController.swift:454`
+- [x] `<host>` in remote statuses is the host without `user@`. `WriterCore/Remote.swift:48`
 - [ ] Transient messages replace the status for 2.2 s, then the status returns. `EditorController.swift:491-501`
 - [ ] Every transient message is announced to VoiceOver at medium priority. `EditorController.swift:495`
 
@@ -372,10 +372,10 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 ### File
 
 - [ ] "New" ⌘N, always → New draft. `MainMenu.swift:35`, `Commands.swift:7-11`
-- [ ] "Open…" ⌘O, always → Open picker sheet. `MainMenu.swift:36`, `Commands.swift:13-24`
+- [x] "Open…" ⌘O, always → Open picker sheet. `MainMenu.swift:36`, `Commands.swift:13-24`
 - [ ] "Open Other File…" ⇧⌘O, always → file open panel. `MainMenu.swift:37`
-- [ ] "Open Folder…" ⌥⌘O, always → folder panel for the sidebar. `MainMenu.swift:38`
-- [ ] "Open over SSH…" ⌃⌘O, always → SSH sheet. `MainMenu.swift:39`
+- [x] "Open Folder…" ⌥⌘O, always → folder panel for the sidebar. `MainMenu.swift:38`
+- [x] "Open over SSH…" ⌃⌘O, always → SSH sheet. `MainMenu.swift:39`
 - [ ] separator `MainMenu.swift:40`
 - [ ] "Save" ⌘S, always → save now. `MainMenu.swift:41`
 - [ ] "Save As…" ⇧⌘S, always → Save As. `MainMenu.swift:42`
@@ -437,8 +437,8 @@ Every item, its shortcut, its enabled/checked rule and its action. "Always" mean
 
 ### View
 
-- [ ] "Show Sidebar" ⌃⌘S; title "Hide Sidebar" while the sidebar is pinned. `MainMenu.swift:113`, `Commands.swift:181`
-- [ ] "Recent Files" ⇧⌘E → pin the sidebar (if needed) and switch it to Recent. `MainMenu.swift:114`, `RemoteEditing.swift:64-69`
+- [x] "Show Sidebar" ⌃⌘S; title "Hide Sidebar" while the sidebar is pinned. `MainMenu.swift:113`, `Commands.swift:181`
+- [x] "Recent Files" ⇧⌘E → pin the sidebar (if needed) and switch it to Recent. `MainMenu.swift:114`, `RemoteEditing.swift:64-69`
 - [ ] separator `MainMenu.swift:115`
 - [ ] "Toggle Focus" ⌘D; title "Turn Focus Off" while Sentence or Paragraph is on, else "Turn <Sentence|Paragraph> Focus On" naming the last dimming mode. `MainMenu.swift:116`, `Commands.swift:175`
 - [ ] Focus › "Off" ⌃⌘0, checked when Off. `MainMenu.swift:118`, `Commands.swift:171`
@@ -525,115 +525,115 @@ All format commands apply through the text system as one undo step with the name
 
 ### Panel
 
-- [ ] Width 260 pt; background `sidebar`; 1 pt `hairline` on the right edge. `Sidebar.swift:58-66`, `Sidebar.swift:89`
-- [ ] Hidden by default; pinned state persisted. `Preferences.swift:38-41`, `EditorController.swift:130`
-- [ ] Pinning/unpinning sets the traffic lights fully opaque, shows chrome with auto-hide, and re-lays out. `RemoteEditing.swift:49-62`
-- [ ] Pinning reloads the list. `RemoteEditing.swift:54-55`
-- [ ] Segmented control "Recent" | "Folder", small size, IBM Plex Mono 11 pt, equal widths, at x 14, y 42, width panel−29, height 22; accessibility label "Sidebar view". `Sidebar.swift:73`, `Sidebar.swift:101-108`, `Sidebar.swift:160`
-- [ ] Mode is persisted; default Recent. `Preferences.swift:43-46`, `Sidebar.swift:299-304`
-- [ ] List rows: 42 pt with a subtitle, 28 pt without; no header; no grid; transparent background; no focus ring; accessibility label "Files". `Sidebar.swift:134-147`, `Sidebar.swift:341-343`
-- [ ] List starts at y 74 (y 96 when the folder header shows) and fills the rest; overlay auto-hiding scroller. `Sidebar.swift:161-168`, `Sidebar.swift:148-153`
-- [ ] Row of the open file (when not selected): `sidebarCurrent` rounded rect inset 8 pt horizontally, 1 pt vertically, radius 6. `Sidebar.swift:35-39`
-- [ ] Selected row: `sidebarSelection` with the same shape. `Sidebar.swift:41-44`
-- [ ] Row icon (11 pt, `quiet`): `arrow.turn.left.up` for "..", `folder` for folders, `network` for remote files, `doc.text` for local files. `Sidebar.swift:349-357`
-- [ ] Row title IBM Plex Mono 13 pt, `text` for the open file, `text` α0.8 otherwise, truncates at tail. `Sidebar.swift:358-361`
-- [ ] Two-line row: icon 14×14 at (18, 22), title at (38, 21), subtitle IBM Plex Mono 11 pt `quiet` at (38, 4), truncating in the middle. `Sidebar.swift:363-371`
-- [ ] One-line row: icon at (18, 7), title at (38, 5). `Sidebar.swift:372-375`
-- [ ] Row accessibility label "<title>, <subtitle>". `Sidebar.swift:378`
-- [ ] Type-to-select by title. `Sidebar.swift:382-384`
-- [ ] Single click on a row activates it. `Sidebar.swift:144-145`, `Sidebar.swift:310-314`
-- [ ] Return or keypad Enter activates the selected row. `Sidebar.swift:49-56`, `Sidebar.swift:146`
-- [ ] Activating a file deselects the row and opens it (remote files over SSH). `Sidebar.swift:325-327`
-- [ ] After every list load the selection is cleared and the open file is re-marked. `Sidebar.swift:284-289`
-- [ ] Empty-state message: IBM Plex Mono 12 pt, `quiet`, centred, wrapping, at listY + 24, 20 pt side margins, 60 pt tall. `Sidebar.swift:129-132`, `Sidebar.swift:170`
+- [x] Width 260 pt; background `sidebar`; 1 pt `hairline` on the right edge. `Sidebar.swift:58-66`, `Sidebar.swift:89`
+- [x] Hidden by default; pinned state persisted. `Preferences.swift:38-41`, `EditorController.swift:130`
+- [x] Pinning/unpinning sets the traffic lights fully opaque, shows chrome with auto-hide, and re-lays out. `RemoteEditing.swift:49-62` — Rust: chrome shown with auto-hide and the editor re-laid out; there are no traffic lights to force opaque until the window-chrome work draws them.
+- [x] Pinning reloads the list. `RemoteEditing.swift:54-55`
+- [x] Segmented control "Recent" | "Folder", small size, IBM Plex Mono 11 pt, equal widths, at x 14, y 42, width panel−29, height 22; accessibility label "Sidebar view". `Sidebar.swift:73`, `Sidebar.swift:101-108`, `Sidebar.swift:160` — Rust: drawn by the app (AppKit's control look approximated with `sidebarCurrent` track and `sidebarSelection` segment).
+- [x] Mode is persisted; default Recent. `Preferences.swift:43-46`, `Sidebar.swift:299-304`
+- [x] List rows: 42 pt with a subtitle, 28 pt without; no header; no grid; transparent background; no focus ring; accessibility label "Files". `Sidebar.swift:134-147`, `Sidebar.swift:341-343`
+- [x] List starts at y 74 (y 96 when the folder header shows) and fills the rest; overlay auto-hiding scroller. `Sidebar.swift:161-168`, `Sidebar.swift:148-153` — Rust: the scroller is Rune's scroll view's own.
+- [x] Row of the open file (when not selected): `sidebarCurrent` rounded rect inset 8 pt horizontally, 1 pt vertically, radius 6. `Sidebar.swift:35-39`
+- [x] Selected row: `sidebarSelection` with the same shape. `Sidebar.swift:41-44`
+- [x] Row icon (11 pt, `quiet`): `arrow.turn.left.up` for "..", `folder` for folders, `network` for remote files, `doc.text` for local files. `Sidebar.swift:349-357` — Rust: vector icons in a 14 pt box.
+- [x] Row title IBM Plex Mono 13 pt, `text` for the open file, `text` α0.8 otherwise, truncates at tail. `Sidebar.swift:358-361`
+- [x] Two-line row: icon 14×14 at (18, 22), title at (38, 21), subtitle IBM Plex Mono 11 pt `quiet` at (38, 4), truncating in the middle. `Sidebar.swift:363-371` — Rust: the Swift cell isn't flipped; measured from the top these are icon (18, 6), title (38, 4), subtitle (38, 23).
+- [x] One-line row: icon at (18, 7), title at (38, 5). `Sidebar.swift:372-375` — Rust: from the top: icon (18, 7), title (38, 6).
+- [x] Row accessibility label "<title>, <subtitle>". `Sidebar.swift:378`
+- [x] Type-to-select by title. `Sidebar.swift:382-384` — Rust: prefix match, keys within 1 s add to it.
+- [x] Single click on a row activates it. `Sidebar.swift:144-145`, `Sidebar.swift:310-314`
+- [x] Return or keypad Enter activates the selected row. `Sidebar.swift:49-56`, `Sidebar.swift:146`
+- [x] Activating a file deselects the row and opens it (remote files over SSH). `Sidebar.swift:325-327`
+- [x] After every list load the selection is cleared and the open file is re-marked. `Sidebar.swift:284-289`
+- [x] Empty-state message: IBM Plex Mono 12 pt, `quiet`, centred, wrapping, at listY + 24, 20 pt side margins, 60 pt tall. `Sidebar.swift:129-132`, `Sidebar.swift:170`
 
 ### Recent
 
-- [ ] Up to 100 files: every draft-extension file in the drafts folder plus every remembered file that still exists, newest first by max(modified, last opened). `Sidebar.swift:192-197`, `WriterCore/DraftStore.swift:321-345`
-- [ ] Row title is the remembered title (or remote name, or file name); subtitle is the remote location, or the parent folder with `~` for home. `Sidebar.swift:194-196`, `WriterCore/DraftStore.swift:340`
-- [ ] Empty message "Files you open show up here." `Sidebar.swift:198`
-- [ ] The Recent list refreshes after saves and document changes. `Sidebar.swift:187-190`, `EditorController.swift:372-374`, `EditorController.swift:354`
+- [x] Up to 100 files: every draft-extension file in the drafts folder plus every remembered file that still exists, newest first by max(modified, last opened). `Sidebar.swift:192-197`, `WriterCore/DraftStore.swift:321-345`
+- [x] Row title is the remembered title (or remote name, or file name); subtitle is the remote location, or the parent folder with `~` for home. `Sidebar.swift:194-196`, `WriterCore/DraftStore.swift:340`
+- [x] Empty message "Files you open show up here." `Sidebar.swift:198`
+- [x] The Recent list refreshes after saves and document changes. `Sidebar.swift:187-190`, `EditorController.swift:372-374`, `EditorController.swift:354`
 
 ### Folder
 
-- [ ] With no folder chosen: message "Open a folder to see its files here." and a centred small rounded "Open Folder…" button at listY + 90. `Sidebar.swift:204-211`, `Sidebar.swift:171-173`
-- [ ] Header (only in Folder mode with a folder): IBM Plex Mono 11 pt `quiet`, truncating in the middle, at (16, 74), width panel−53; text is the folder name, or "root › sub › sub" when navigated into subfolders; tooltip is the full path (`~` abbreviated) or remote location. `Sidebar.swift:110-113`, `Sidebar.swift:161-166`, `Sidebar.swift:214-215`, `Sidebar.swift:15-20`
-- [ ] Remote folder name is the last path component, or "<host> ~" for the home folder. `Sidebar.swift:8-13`
-- [ ] Refresh button `arrow.clockwise`, borderless, `quiet` tint, 20×20 at (panel−33, 72), tooltip "Refresh", accessibility description "Refresh folder"; reloads the list. `Sidebar.swift:115-121`, `Sidebar.swift:166`, `Sidebar.swift:307`
-- [ ] Lists folders and files ending md/markdown/txt/text (case-insensitive); hidden files skipped. `Sidebar.swift:238-243`, `Sidebar.swift:251-252`
-- [ ] Sort: folders first, then Finder-style name order. `Sidebar.swift:253`
-- [ ] When inside a subfolder, the first row is ".." (no subtitle); clicking it goes up one level. `Sidebar.swift:269-271`, `Sidebar.swift:318-320`
-- [ ] Clicking a folder row goes into it. `Sidebar.swift:321-324`
-- [ ] Empty folder message "No Markdown or text files here." `Sidebar.swift:263`
-- [ ] Listing error: message is the error text, ".." row kept. `Sidebar.swift:247-249`
-- [ ] Remote folder: shows "Loading <host>…" while listing in the background; a stale listing result (after navigating or reloading) is ignored. `Sidebar.swift:219-235`
-- [ ] Only the root folder is persisted (local path or remote location); subfolder navigation is not. `Preferences.swift:48-63`, `Sidebar.swift:96`, `Sidebar.swift:293-297`
-- [ ] File › Open Folder… (⌥⌘O): folder-only open panel as a sheet, button "Open Folder", message "Choose a folder to list its Markdown and text files in the sidebar.", starting in the current local root; on OK pins the sidebar and shows the folder. `RemoteEditing.swift:78-92`
-- [ ] The "Open Folder…" button in the sidebar runs the same command. `Sidebar.swift:308`
+- [x] With no folder chosen: message "Open a folder to see its files here." and a centred small rounded "Open Folder…" button at listY + 90. `Sidebar.swift:204-211`, `Sidebar.swift:171-173`
+- [x] Header (only in Folder mode with a folder): IBM Plex Mono 11 pt `quiet`, truncating in the middle, at (16, 74), width panel−53; text is the folder name, or "root › sub › sub" when navigated into subfolders; tooltip is the full path (`~` abbreviated) or remote location. `Sidebar.swift:110-113`, `Sidebar.swift:161-166`, `Sidebar.swift:214-215`, `Sidebar.swift:15-20`
+- [x] Remote folder name is the last path component, or "<host> ~" for the home folder. `Sidebar.swift:8-13`
+- [x] Refresh button `arrow.clockwise`, borderless, `quiet` tint, 20×20 at (panel−33, 72), tooltip "Refresh", accessibility description "Refresh folder"; reloads the list. `Sidebar.swift:115-121`, `Sidebar.swift:166`, `Sidebar.swift:307`
+- [x] Lists folders and files ending md/markdown/txt/text (case-insensitive); hidden files skipped. `Sidebar.swift:238-243`, `Sidebar.swift:251-252` — Rust: local listings run off the UI thread too.
+- [x] Sort: folders first, then Finder-style name order. `Sidebar.swift:253` — Rust: case-insensitive with digit runs compared by value.
+- [x] When inside a subfolder, the first row is ".." (no subtitle); clicking it goes up one level. `Sidebar.swift:269-271`, `Sidebar.swift:318-320`
+- [x] Clicking a folder row goes into it. `Sidebar.swift:321-324`
+- [x] Empty folder message "No Markdown or text files here." `Sidebar.swift:263`
+- [x] Listing error: message is the error text, ".." row kept. `Sidebar.swift:247-249` — Rust: local errors use Foundation's wording ("The folder “x” doesn’t exist.").
+- [x] Remote folder: shows "Loading <host>…" while listing in the background; a stale listing result (after navigating or reloading) is ignored. `Sidebar.swift:219-235`
+- [x] Only the root folder is persisted (local path or remote location); subfolder navigation is not. `Preferences.swift:48-63`, `Sidebar.swift:96`, `Sidebar.swift:293-297`
+- [x] File › Open Folder… (⌥⌘O): folder-only open panel as a sheet, button "Open Folder", message "Choose a folder to list its Markdown and text files in the sidebar.", starting in the current local root; on OK pins the sidebar and shows the folder. `RemoteEditing.swift:78-92` — Rust: Rune's `FileDialogOptions` has a title only, so the button can't read "Open Folder" and the message is passed as the title.
+- [x] The "Open Folder…" button in the sidebar runs the same command. `Sidebar.swift:308`
 
 ### Peek
 
-- [ ] With the sidebar not pinned, holding the pointer within 4 pt of the window's left edge (no mouse button down, window key) for 0.12 s, and still within 10 pt then, slides the sidebar in over the text. `ChromeControls.swift:171-199`
-- [ ] Peek slides in from x −260 to 0 over 0.18 s ease-out (instant with Reduce Motion), with a black shadow, opacity 0.22, radius 18, offset (4, 0); list reloads; chrome shown with no auto-hide. `ChromeControls.swift:201-226`
-- [ ] Peek closes 0.25 s after the pointer moves more than 296 pt (260 + 36) from the left edge; moving back cancels the timer. `ChromeControls.swift:174-186`
-- [ ] Clicking in the text closes the peek. `EditorController.swift:183-186`
-- [ ] Peek slides out over 0.16 s ease-in (instant with Reduce Motion), then chrome auto-hide restarts. `ChromeControls.swift:228-246`
-- [ ] Clicking the sidebar button (or ⌃⌘S) while peeking pins the sidebar and saves it as shown. `ChromeControls.swift:249-258`, `RemoteEditing.swift:50`
+- [x] With the sidebar not pinned, holding the pointer within 4 pt of the window's left edge (no mouse button down, window key) for 0.12 s, and still within 10 pt then, slides the sidebar in over the text. `ChromeControls.swift:171-199` — Rust: Rune doesn't tell the app whether a mouse button is held, so the "no mouse button down" condition is missing.
+- [x] Peek slides in from x −260 to 0 over 0.18 s ease-out (instant with Reduce Motion), with a black shadow, opacity 0.22, radius 18, offset (4, 0); list reloads; chrome shown with no auto-hide. `ChromeControls.swift:201-226`
+- [x] Peek closes 0.25 s after the pointer moves more than 296 pt (260 + 36) from the left edge; moving back cancels the timer. `ChromeControls.swift:174-186`
+- [x] Clicking in the text closes the peek. `EditorController.swift:183-186` — Rust: detected as the caret moving with no key pressed and the pointer right of the panel; a click that leaves the caret where it was doesn't close it.
+- [x] Peek slides out over 0.16 s ease-in (instant with Reduce Motion), then chrome auto-hide restarts. `ChromeControls.swift:228-246`
+- [x] Clicking the sidebar button (or ⌃⌘S) while peeking pins the sidebar and saves it as shown. `ChromeControls.swift:249-258`, `RemoteEditing.swift:50`
 
 ---
 
 ## 11. Open picker (⌘O)
 
-- [ ] Saves the current draft first, then shows a titled sheet, 520×420 pt. `Commands.swift:13-16`, `OpenPicker.swift:18-24`, `OpenPicker.swift:36`
-- [ ] Search field at top (16 pt margins), IBM Plex Mono 14 pt, placeholder "Find a draft", no focus ring, accessibility label "Find a draft"; focused when the sheet appears. `OpenPicker.swift:37-41`, `OpenPicker.swift:76-79`, `OpenPicker.swift:95-98`
-- [ ] List 10 pt under the search, 8 pt side margins, 12 pt above the buttons; rows 50 pt; accessibility label "Recent drafts". `OpenPicker.swift:44-55`, `OpenPicker.swift:80-83`
-- [ ] Lists up to 200 drafts (drafts folder + remembered files), newest first. `OpenPicker.swift:91`, `WriterCore/DraftStore.swift:321`
-- [ ] Row: title IBM Plex Mono Medium 13 pt; below, IBM Plex Mono 11 pt secondary-label colour, "<relative date> — <preview>", 3 pt apart, 10 pt side insets, vertically centred; both truncate at tail. `OpenPicker.swift:135-158`
-- [ ] Relative date uses the short style ("2 hr. ago"); omitted when unknown. `OpenPicker.swift:141-143`
-- [ ] Preview = plain text of the first 600 bytes without the first line, joined with spaces, up to 140 characters. `WriterCore/DraftStore.swift:392-399`
-- [ ] Row accessibility label "<title>, <relative date>". `OpenPicker.swift:159`
-- [ ] Filtering as you type: case-insensitive substring of title or preview, query trimmed of spaces. `OpenPicker.swift:100-103`, `OpenPicker.swift:114`
-- [ ] Initial selection: the second row when the open draft is first, there is more than one row and the query is empty; otherwise the first row. `OpenPicker.swift:106-111`
-- [ ] Empty states centred over the list, IBM Plex Mono 13 pt `quiet`: "No drafts yet" or "No matching drafts". `OpenPicker.swift:62-64`, `OpenPicker.swift:104-105`
-- [ ] ↓/↑ in the search field move the selection (clamped). `OpenPicker.swift:116-131`
-- [ ] Return opens the selected draft; Esc cancels. `OpenPicker.swift:120-121`
-- [ ] Double-click a row opens it. `OpenPicker.swift:54`
-- [ ] Buttons along the bottom (16 pt margins, 14 pt from bottom): "Other File…", "New Draft", flexible space, "Cancel" (Esc), "Open" (Return, default). `OpenPicker.swift:66-73`, `OpenPicker.swift:86-88`
-- [ ] Other File… closes the sheet and shows the file open panel; New Draft closes and runs New. `OpenPicker.swift:175-176`, `Commands.swift:19-22`
-- [ ] The chosen action runs after the sheet has closed. `OpenPicker.swift:163-168`
+- [x] Saves the current draft first, then shows a titled sheet, 520×420 pt. `Commands.swift:13-16`, `OpenPicker.swift:18-24`, `OpenPicker.swift:36`
+- [x] Search field at top (16 pt margins), IBM Plex Mono 14 pt, placeholder "Find a draft", no focus ring, accessibility label "Find a draft"; focused when the sheet appears. `OpenPicker.swift:37-41`, `OpenPicker.swift:76-79`, `OpenPicker.swift:95-98`
+- [x] List 10 pt under the search, 8 pt side margins, 12 pt above the buttons; rows 50 pt; accessibility label "Recent drafts". `OpenPicker.swift:44-55`, `OpenPicker.swift:80-83`
+- [x] Lists up to 200 drafts (drafts folder + remembered files), newest first. `OpenPicker.swift:91`, `WriterCore/DraftStore.swift:321`
+- [x] Row: title IBM Plex Mono Medium 13 pt; below, IBM Plex Mono 11 pt secondary-label colour, "<relative date> — <preview>", 3 pt apart, 10 pt side insets, vertically centred; both truncate at tail. `OpenPicker.swift:135-158` — Rust: secondary-label colour is `text` at α0.5.
+- [x] Relative date uses the short style ("2 hr. ago"); omitted when unknown. `OpenPicker.swift:141-143`
+- [x] Preview = plain text of the first 600 bytes without the first line, joined with spaces, up to 140 characters. `WriterCore/DraftStore.swift:392-399`
+- [x] Row accessibility label "<title>, <relative date>". `OpenPicker.swift:159`
+- [x] Filtering as you type: case-insensitive substring of title or preview, query trimmed of spaces. `OpenPicker.swift:100-103`, `OpenPicker.swift:114`
+- [x] Initial selection: the second row when the open draft is first, there is more than one row and the query is empty; otherwise the first row. `OpenPicker.swift:106-111`
+- [x] Empty states centred over the list, IBM Plex Mono 13 pt `quiet`: "No drafts yet" or "No matching drafts". `OpenPicker.swift:62-64`, `OpenPicker.swift:104-105`
+- [x] ↓/↑ in the search field move the selection (clamped). `OpenPicker.swift:116-131`
+- [x] Return opens the selected draft; Esc cancels. `OpenPicker.swift:120-121`
+- [x] Double-click a row opens it. `OpenPicker.swift:54`
+- [x] Buttons along the bottom (16 pt margins, 14 pt from bottom): "Other File…", "New Draft", flexible space, "Cancel" (Esc), "Open" (Return, default). `OpenPicker.swift:66-73`, `OpenPicker.swift:86-88`
+- [x] Other File… closes the sheet and shows the file open panel; New Draft closes and runs New. `OpenPicker.swift:175-176`, `Commands.swift:19-22` — Rust: Other File… runs Open Other File, which is still the placeholder until its branch lands. A remote file's row opens over SSH (owner-approved fix of oddity 13).
+- [x] The chosen action runs after the sheet has closed. `OpenPicker.swift:163-168`
 
 ---
 
 ## 12. SSH and remote editing
 
-- [ ] File › Open over SSH… (⌃⌘O): sheet alert, title "Open over SSH", text "Enter a file to edit or a folder to browse, like me@server:~/notes or ssh://me@server:2222/srv/notes/draft.md. Your SSH config and keys are used; password prompts aren't supported." `RemoteEditing.swift:96-100`
-- [ ] Text field 340×24, placeholder "user@host:~/notes/draft.md", prefilled with the last location, initially focused, accessibility label "SSH location"; buttons "Open", "Cancel". `RemoteEditing.swift:101-108`
-- [ ] Accepted forms: `host:path`, `user@host:path`, `ssh://[user@]host[:port]/path`; empty path means `~`; `ssh://host/~/x` means `~/x`. `WriterCore/Remote.swift:17-33`
-- [ ] Rejected: empty host, host starting with `-`, host containing whitespace or any of `/'"`$;|&<>()\`, path containing newline or NUL. `WriterCore/Remote.swift:35-40`
-- [ ] Invalid input: second sheet alert "That doesn't look like an SSH location." / "Use host:path, user@host:path, or ssh://user@host:port/path." `RemoteEditing.swift:112-118`
-- [ ] A valid location is remembered for next time. `RemoteEditing.swift:119`, `Preferences.swift:65-68`
-- [ ] Flashes "Connecting to <host>…" and checks in the background whether the path is a folder, file or missing. `RemoteEditing.swift:124-128`, `WriterCore/Remote.swift:113-121`
-- [ ] Folder → pin the sidebar and show it in Folder mode. File → open it. Missing → alert "Nothing at <location>." Error → alert with the ssh error. `RemoteEditing.swift:131-141`
-- [ ] Runs `/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 [-p port] <host> <command>`, so `~/.ssh/config`, keys and agent apply and passwords are never prompted. `WriterCore/Remote.swift:86-100`
-- [ ] Remote paths starting `~` stay unquoted so the remote shell expands them; everything else is single-quoted. `WriterCore/Remote.swift:61-70`
-- [ ] SSH error "…Permission denied…" → "<host> refused the login. Fluent Writer can't type passwords, so use an SSH key or ssh-agent (ssh-copy-id <host>)." `WriterCore/Remote.swift:176-178`
-- [ ] SSH error "Host key verification failed" → "<host> isn't a known host yet. Run `ssh <host>` in Terminal once to trust it." `WriterCore/Remote.swift:179-181`
-- [ ] No stderr → "ssh to <host> failed (exit <status>)."; otherwise "<host>: <last stderr line>" (ignoring "Warning: Permanently added" lines). `WriterCore/Remote.swift:173-184`
-- [ ] ssh can't start → "Couldn't start ssh: <reason>". `WriterCore/Remote.swift:148-150`
-- [ ] Opening a remote file that is already open just focuses the editor. `RemoteEditing.swift:147`
-- [ ] Opening a remote file runs the leave check, flashes "Opening <name> from <host>…" and reads it in the background; only the latest open request is applied. `RemoteEditing.swift:146-160`
-- [ ] Remote text is kept in a local mirror under `<support>/Remote/<host>[-<port>]/home|root/<path components>`. `WriterCore/DraftStore.swift:350-359`
-- [ ] On a successful read the mirror is overwritten with the server's text, unless the mirror has saved edits that never reached the server; those are kept and the app flashes "Kept your edits that hadn't reached <host>" and uploads them 0.2 s later. `WriterCore/DraftStore.swift:366-379`, `RemoteEditing.swift:166-169`, `EditorController.swift:339`
-- [ ] Remote file title is the remote file name unless the writer named it. `WriterCore/DraftStore.swift:376`
-- [ ] If the server can't be reached and this file was opened before (record and mirror exist), the mirror opens and the footer shows "Offline · editing the local copy"; otherwise an error alert. `RemoteEditing.swift:170-176`
-- [ ] Each save writes the mirror first, then uploads in the background. `EditorController.swift:369-371`, `WriterCore/DraftStore.swift:201-204`
-- [ ] Upload writes `<path>.fwtmp-<8 hex>` beside the target, then `mv -f` over it; on failure the temp file is removed. `WriterCore/Remote.swift:106-111`
-- [ ] One upload at a time; while one runs, only the newest pending text is queued. `RemoteEditing.swift:9-35`
-- [ ] The "not yet uploaded" flag clears only if the uploaded text is still the last saved text; the flag is persisted per file. `WriterCore/DraftStore.swift:382-390`
-- [ ] Leaving a remote file with an un-uploaded save uploads it synchronously first; on failure a warning alert: "Your latest edits aren't on <host> yet." / "<error>\n\nThey're saved on this Mac and will be sent the next time you open this file.", buttons "Keep Editing" (stay), "Continue" (leave). `RemoteEditing.swift:194-211`
-- [ ] Show in Finder is disabled for remote files. `Commands.swift:182`
-- [ ] Remote files show a `network` icon in the sidebar. `Sidebar.swift:353`
-- [ ] Remote folder listing runs `cd -- <path> && ls -1Ap`; entries starting with `.` are skipped; trailing `/` marks folders. `WriterCore/Remote.swift:123-137`
+- [x] File › Open over SSH… (⌃⌘O): sheet alert, title "Open over SSH", text "Enter a file to edit or a folder to browse, like me@server:~/notes or ssh://me@server:2222/srv/notes/draft.md. Your SSH config and keys are used; password prompts aren't supported." `RemoteEditing.swift:96-100` — Rust: drawn as an app sheet.
+- [x] Text field 340×24, placeholder "user@host:~/notes/draft.md", prefilled with the last location, initially focused, accessibility label "SSH location"; buttons "Open", "Cancel". `RemoteEditing.swift:101-108`
+- [x] Accepted forms: `host:path`, `user@host:path`, `ssh://[user@]host[:port]/path`; empty path means `~`; `ssh://host/~/x` means `~/x`. `WriterCore/Remote.swift:17-33`
+- [x] Rejected: empty host, host starting with `-`, host containing whitespace or any of `/'"`$;|&<>()\`, path containing newline or NUL. `WriterCore/Remote.swift:35-40`
+- [x] Invalid input: second sheet alert "That doesn't look like an SSH location." / "Use host:path, user@host:path, or ssh://user@host:port/path." `RemoteEditing.swift:112-118`
+- [x] A valid location is remembered for next time. `RemoteEditing.swift:119`, `Preferences.swift:65-68`
+- [x] Flashes "Connecting to <host>…" and checks in the background whether the path is a folder, file or missing. `RemoteEditing.swift:124-128`, `WriterCore/Remote.swift:113-121`
+- [x] Folder → pin the sidebar and show it in Folder mode. File → open it. Missing → alert "Nothing at <location>." Error → alert with the ssh error. `RemoteEditing.swift:131-141`
+- [x] Runs `/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 [-p port] <host> <command>`, so `~/.ssh/config`, keys and agent apply and passwords are never prompted. `WriterCore/Remote.swift:86-100`
+- [x] Remote paths starting `~` stay unquoted so the remote shell expands them; everything else is single-quoted. `WriterCore/Remote.swift:61-70`
+- [x] SSH error "…Permission denied…" → "<host> refused the login. Fluent Writer can't type passwords, so use an SSH key or ssh-agent (ssh-copy-id <host>)." `WriterCore/Remote.swift:176-178`
+- [x] SSH error "Host key verification failed" → "<host> isn't a known host yet. Run `ssh <host>` in Terminal once to trust it." `WriterCore/Remote.swift:179-181`
+- [x] No stderr → "ssh to <host> failed (exit <status>)."; otherwise "<host>: <last stderr line>" (ignoring "Warning: Permanently added" lines). `WriterCore/Remote.swift:173-184` — Rust: the stderr case is checked against the test server ("<host>: ssh: connect to host … Connection refused"); the no-stderr case only by writer-core's tests.
+- [x] ssh can't start → "Couldn't start ssh: <reason>". `WriterCore/Remote.swift:148-150`
+- [x] Opening a remote file that is already open just focuses the editor. `RemoteEditing.swift:147`
+- [x] Opening a remote file runs the leave check, flashes "Opening <name> from <host>…" and reads it in the background; only the latest open request is applied. `RemoteEditing.swift:146-160`
+- [x] Remote text is kept in a local mirror under `<support>/Remote/<host>[-<port>]/home|root/<path components>`. `WriterCore/DraftStore.swift:350-359`
+- [x] On a successful read the mirror is overwritten with the server's text, unless the mirror has saved edits that never reached the server; those are kept and the app flashes "Kept your edits that hadn't reached <host>" and uploads them 0.2 s later. `WriterCore/DraftStore.swift:366-379`, `RemoteEditing.swift:166-169`, `EditorController.swift:339`
+- [x] Remote file title is the remote file name unless the writer named it. `WriterCore/DraftStore.swift:376`
+- [x] If the server can't be reached and this file was opened before (record and mirror exist), the mirror opens and the footer shows "Offline · editing the local copy"; otherwise an error alert. `RemoteEditing.swift:170-176`
+- [x] Each save writes the mirror first, then uploads in the background. `EditorController.swift:369-371`, `WriterCore/DraftStore.swift:201-204`
+- [x] Upload writes `<path>.fwtmp-<8 hex>` beside the target, then `mv -f` over it; on failure the temp file is removed. `WriterCore/Remote.swift:106-111`
+- [x] One upload at a time; while one runs, only the newest pending text is queued. `RemoteEditing.swift:9-35`
+- [x] The "not yet uploaded" flag clears only if the uploaded text is still the last saved text; the flag is persisted per file. `WriterCore/DraftStore.swift:382-390`
+- [x] Leaving a remote file with an un-uploaded save uploads it synchronously first; on failure a warning alert: "Your latest edits aren't on <host> yet." / "<error>\n\nThey're saved on this Mac and will be sent the next time you open this file.", buttons "Keep Editing" (stay), "Continue" (leave). `RemoteEditing.swift:194-211` — Rust: the upload runs off the UI thread behind a waiting sheet ("Saving to <host>…", Keep Editing cancels leaving); the warning alert and its buttons are as listed.
+- [x] Show in Finder is disabled for remote files. `Commands.swift:182`
+- [x] Remote files show a `network` icon in the sidebar. `Sidebar.swift:353`
+- [x] Remote folder listing runs `cd -- <path> && ls -1Ap`; entries starting with `.` are skipped; trailing `/` marks folders. `WriterCore/Remote.swift:123-137`
 
 ---
 
@@ -915,16 +915,16 @@ All format commands apply through the text system as one undo step with the name
 - [ ] `appearance` (system|light|dark), default system; applied at launch. `Preferences.swift:23-26`, `main.swift:9`
 - [ ] `showCounts`, default true. `Preferences.swift:28-31`
 - [ ] `spellCheck`, default true. `Preferences.swift:33-36`
-- [ ] `showSidebar`, default false. `Preferences.swift:38-41`
-- [ ] `sidebarMode` (recent|folder), default recent. `Preferences.swift:43-46`
-- [ ] `folderLocal` (path) or `folderRemote` (location string), mutually exclusive. `Preferences.swift:48-63`
-- [ ] `lastSSHLocation`, default empty. `Preferences.swift:65-68`
+- [x] `showSidebar`, default false. `Preferences.swift:38-41`
+- [x] `sidebarMode` (recent|folder), default recent. `Preferences.swift:43-46`
+- [x] `folderLocal` (path) or `folderRemote` (location string), mutually exclusive. `Preferences.swift:48-63`
+- [x] `lastSSHLocation`, default empty. `Preferences.swift:65-68`
 - [ ] `assist.provider` (codex|claude), default codex. `AssistController.swift:138`, `AssistController.swift:670`
 - [ ] Window frame under `NSWindow Frame FluentWriterMain`. **(AppKit built-in)** `EditorController.swift:146`
 - [ ] Grammar, autocorrect, smart quotes, smart dashes and text replacement toggles are not saved by the app and reset at launch. `EditorController.swift:164-167`
 - [ ] `<support>/state.json`: per-file record (path, title, manual-title flag, selection, last opened, remote location, upload-pending flag) and last opened path. `WriterCore/DraftStore.swift:3-18`, `WriterCore/DraftStore.swift:292-317`
 - [ ] `<support>/Recovery/<uuid>.json` recovery snapshots. `WriterCore/DraftStore.swift:218-222`
-- [ ] `<support>/Remote/…` remote mirrors. `WriterCore/DraftStore.swift:85`, `WriterCore/DraftStore.swift:350-359`
+- [x] `<support>/Remote/…` remote mirrors. `WriterCore/DraftStore.swift:85`, `WriterCore/DraftStore.swift:350-359`
 - [ ] `<support>/Notes/<first 12 bytes of SHA-256 of the path, hex>.json` per draft: comments, versions, Assist history (max 200 exchanges); file deleted when empty; `Notes/.lock` for cross-process locking. `WriterCore/DocumentNotes.swift:168-169`, `WriterCore/DocumentNotes.swift:251-284`
 - [ ] Notes save 0.6 s after a change, and immediately on document switch, send and quit. `NotesController.swift:82-96`
 - [ ] Notes for a never-saved draft are kept in memory until it gets a file, then filed under that path. `NotesController.swift:41-42`, `NotesController.swift:52-63`
@@ -941,9 +941,9 @@ All format commands apply through the text system as one undo step with the name
 - [ ] Status label "Save status", value = its text. `EditorController.swift:229`, `EditorController.swift:487`
 - [ ] Counts label "Counts", value = its text. `EditorController.swift:230`, `EditorController.swift:516`
 - [ ] Sidebar button "Toggle sidebar"; toolbar "Add comment", "Comments", "Versions", "Assist", each with count value when non-zero. `EditorController.swift:77`, `ChromeControls.swift:71-74`, `ChromeControls.swift:63`
-- [ ] Sidebar: "Sidebar view" (segmented), "Files" (list), "Refresh folder" (refresh button), rows "<title>, <subtitle>". `Sidebar.swift:107`, `Sidebar.swift:115`, `Sidebar.swift:147`, `Sidebar.swift:378`
-- [ ] Open picker: "Find a draft", "Recent drafts", rows "<title>, <when>". `OpenPicker.swift:41`, `OpenPicker.swift:55`, `OpenPicker.swift:159`
-- [ ] SSH field "SSH location". `RemoteEditing.swift:104`
+- [x] Sidebar: "Sidebar view" (segmented), "Files" (list), "Refresh folder" (refresh button), rows "<title>, <subtitle>". `Sidebar.swift:107`, `Sidebar.swift:115`, `Sidebar.swift:147`, `Sidebar.swift:378`
+- [x] Open picker: "Find a draft", "Recent drafts", rows "<title>, <when>". `OpenPicker.swift:41`, `OpenPicker.swift:55`, `OpenPicker.swift:159`
+- [x] SSH field "SSH location". `RemoteEditing.swift:104`
 - [ ] Assist: group "Assist"; "Provider"; "Close assist"; "Assist section"; quick actions "<label> with the selected provider"; "Instruction"; "Feedback"; Send/Stop "Send instruction"/"Stop request"; scope label sentences (section 14). `AssistController.swift:182-235`, `AssistController.swift:251`, `AssistController.swift:849`
 - [ ] Cards: role button, activatable with VoiceOver press; comment and version card labels (sections 15, 16); icon buttons labelled with their tooltip text. `AssistController.swift:54-56`, `AssistController.swift:526`
 - [ ] Comment composer text area "Comment". `CommentComposer.swift:57`
@@ -999,10 +999,10 @@ Things in the code that look like bugs, dead code or mismatches. Listed, not fix
 7. "Use This Version" is disabled when the version equals the draft (`VersionPreview.swift:301`), but Return in the preview (`VersionPreview.swift:16`) and ⌥⌘↩ (`Commands.swift:190`) still use it.
 8. Closing the window runs the leave check in `windowShouldClose` (`EditorController.swift:841-843`), then `windowWillClose` quits, and `applicationShouldTerminate` runs the leave check again (`main.swift:38-42`). With a failing save this can show the "couldn't be saved" alert twice.
 9. `application(_:open:)` uses only the first URL and does nothing if the editor hasn't been created yet (`main.swift:34-36`). If macOS delivers the open event before `applicationDidFinishLaunching` (launching the app by opening a file), the file would be ignored and a new or recovered draft shown instead. Not verified at runtime.
-10. Leaving a remote file with un-uploaded edits runs `ssh` synchronously on the main thread (`RemoteEditing.swift:194-198`); the UI freezes for up to the 10 s connect timeout plus transfer time.
-11. If saving the current draft fails after a remote file has been fetched, the remote open is dropped with no message (`RemoteEditing.swift:163`).
-12. A remote file's title is set to its file name on open (`WriterCore/DraftStore.swift:376`), but the first edit replaces it with the derived first-line title because the manual-title flag is false (`EditorController.swift:701-705`).
-13. The Open picker lists remote mirror files and opens them with the local `open(url)` (`Commands.swift:19`), which marks them remote from the saved record but never fetches the server copy. The sidebar's Recent list uses `openRemote` instead (`Sidebar.swift:327`).
+10. Leaving a remote file with un-uploaded edits runs `ssh` synchronously on the main thread (`RemoteEditing.swift:194-198`); the UI freezes for up to the 10 s connect timeout plus transfer time. Rust: fixed; the upload runs off the UI thread behind a waiting sheet.
+11. If saving the current draft fails after a remote file has been fetched, the remote open is dropped with no message (`RemoteEditing.swift:163`). Rust: kept as is.
+12. A remote file's title is set to its file name on open (`WriterCore/DraftStore.swift:376`), but the first edit replaces it with the derived first-line title because the manual-title flag is false (`EditorController.swift:701-705`). Rust: kept as is.
+13. The Open picker lists remote mirror files and opens them with the local `open(url)` (`Commands.swift:19`), which marks them remote from the saved record but never fetches the server copy. The sidebar's Recent list uses `openRemote` instead (`Sidebar.swift:327`). Rust: fixed; the picker opens remote rows over SSH like the sidebar.
 14. `commentsHeader` in the Comments tab is always set to "" (`AssistController.swift:493`), so it never shows.
 15. Dead code: `Cached.pointSize` is stored but never read (`ImageBlocks.swift:119`); `_ = editor` (`AssistController.swift:502`, `VersionPreview.swift:225`); `totalShift` is computed then discarded (`WriterCore/TextEditing.swift:76-107`); `_ = tc` (`EditorTextView.swift:113`); `MarkdownImages.blockInsertion` is never called, and `insertImages` repeats its logic (`WriterCore/MarkdownImages.swift:83-89`, `ImageBlocks.swift:349-351`); `DraftLibrary.lastOpenedURL` and `hasRecovery` are never used (`WriterCore/DraftStore.swift:121-124`, `WriterCore/DraftStore.swift:228-230`).
 16. `IBMPlexMono-SemiBold.otf` is bundled and registered but never used; `uiFont` maps every non-medium weight to Regular (`Theme.swift:111`).

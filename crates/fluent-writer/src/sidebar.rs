@@ -160,11 +160,6 @@ impl Sidebar {
         self.listing.set_waker(waker);
     }
 
-    /// A folder listing is on its way.
-    pub fn is_loading(&self) -> bool {
-        self.listing.is_pending()
-    }
-
     fn header_shown(&self) -> bool {
         self.mode == Mode::Folder && !self.folder_stack.is_empty()
     }
@@ -844,8 +839,349 @@ pub fn button(s: &App, p: &Palette, inset: f32, chrome: f32, fade: Spring) -> El
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use crate::commands::Command;
+    use crate::tests::settle;
+    use rune::{Env, KeyEvent, Mods, Runtime};
+    use writer_core::DraftLibrary;
+
+    /// The app on a library whose drafts folder holds `files`, with the first one open.
+    pub(crate) fn app_with(files: &[(&str, &str)]) -> (Runtime<App>, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let drafts = dir.path().join("drafts");
+        std::fs::create_dir_all(&drafts).unwrap();
+        for (i, (name, body)) in files.iter().enumerate() {
+            let path = drafts.join(name);
+            std::fs::write(&path, body).unwrap();
+            // Distinct, ordered modification times: the first file is the newest.
+            let t = std::time::SystemTime::now() - Duration::from_secs(60 * (i as u64 + 1));
+            std::fs::File::options().write(true).open(&path).unwrap().set_modified(t).unwrap();
+        }
+        let mut library = DraftLibrary::new(&drafts, dir.path().join("support")).unwrap();
+        let doc = match files.first() {
+            Some((name, _)) => library.open(&drafts.join(name)).unwrap(),
+            None => library.new_draft(),
+        };
+        let app = App::new(library, crate::prefs::Prefs::in_memory(), doc);
+        let mut rt = Runtime::new(app, crate::view::view, (1060.0, 760.0), Env { system_dark: false, scale: 1.0 });
+        rt.poll = Some(|s, clock, tx| s.poll(clock, tx));
+        settle(&mut rt, 0.2);
+        (rt, dir)
+    }
+
+    /// Runs frames until `done` holds, sleeping between them so background threads can answer.
+    pub(crate) fn wait_for(rt: &mut Runtime<App>, what: &str, done: impl Fn(&App) -> bool) {
+        for _ in 0..1500 {
+            rt.frame(1.0 / 60.0);
+            if done(&rt.state) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("timed out waiting for {what}");
+    }
+
+    pub(crate) fn click(rt: &mut Runtime<App>, key: &str) {
+        let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no element {key}"));
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(1.0 / 60.0);
+        rt.frame(1.0 / 60.0);
+    }
+
+    pub(crate) fn run(rt: &mut Runtime<App>, c: Command) {
+        rt.update(|s, tx| s.run(c, tx));
+        rt.frame(1.0 / 60.0);
+    }
+
+    fn titles(s: &App) -> Vec<String> {
+        s.sidebar.items.iter().map(|i| i.title.clone()).collect()
+    }
+
+    fn key(rt: &mut Runtime<App>, key: Key) {
+        rt.key(KeyEvent { key, mods: Mods::default() });
+        rt.frame(1.0 / 60.0);
+    }
+
+    #[test]
+    fn show_sidebar_pins_it_lists_recent_files_and_retitles_the_command() {
+        let (mut rt, _dir) = app_with(&[("One.md", "One\n\nfirst"), ("Two.md", "Two\n\nsecond")]);
+        assert!(!rt.state.sidebar_visible);
+        assert_eq!(rt.state.command_title(Command::ToggleSidebar, "Show Sidebar"), "Show Sidebar");
+        assert!(rt.find("sidebar").is_none());
+        run(&mut rt, Command::ToggleSidebar);
+        let s = &rt.state;
+        assert!(s.sidebar_visible && s.prefs.show_sidebar());
+        assert_eq!(s.frame().side_w, 260.0);
+        assert_eq!(s.command_title(Command::ToggleSidebar, "Show Sidebar"), "Hide Sidebar");
+        assert_eq!(titles(s), ["One", "Two"]);
+        assert_eq!(s.sidebar.items[0].subtitle.as_deref(), Some(abbreviate_home(&_dir.path().join("drafts")).as_str()));
+        // The open file is marked, nothing is selected.
+        assert!(s.is_current(&s.sidebar.items[0]) && !s.is_current(&s.sidebar.items[1]));
+        assert_eq!(s.sidebar.selected, None);
+        let row = rt.elements().into_iter().find(|e| e.key.as_deref() == Some("sidebar-row-0")).unwrap();
+        assert_eq!(row.rect[3], 42.0);
+        run(&mut rt, Command::ToggleSidebar);
+        assert!(!rt.state.sidebar_visible && !rt.state.prefs.show_sidebar());
+        assert_eq!(rt.state.frame().side_w, 0.0);
+    }
+
+    #[test]
+    fn the_pinned_sidebar_gives_way_in_a_narrow_window() {
+        let (mut rt, _dir) = app_with(&[("One.md", "One")]);
+        run(&mut rt, Command::ToggleSidebar);
+        rt.state.window = (500.0, 400.0);
+        assert_eq!(rt.state.frame().side_w, 180.0);
+    }
+
+    #[test]
+    fn recent_is_empty_until_files_are_opened() {
+        let (mut rt, _dir) = app_with(&[]);
+        run(&mut rt, Command::RecentFiles);
+        assert!(rt.state.sidebar_visible);
+        assert_eq!(rt.state.sidebar.mode, Mode::Recent);
+        assert_eq!(rt.state.sidebar.message.as_deref(), Some("Files you open show up here."));
+        crate::tests::type_text(&mut rt, "Hello");
+        settle(&mut rt, 1.0);
+        // The first save puts the draft in the list.
+        assert_eq!(titles(&rt.state), ["Hello"]);
+        assert_eq!(rt.state.sidebar.message, None);
+    }
+
+    #[test]
+    fn clicking_a_recent_file_opens_it() {
+        let (mut rt, dir) = app_with(&[("One.md", "One"), ("Two.md", "Two body")]);
+        run(&mut rt, Command::ToggleSidebar);
+        click(&mut rt, "sidebar-row-1");
+        assert_eq!(rt.state.edit.text, "Two body");
+        assert_eq!(rt.state.draft.path(), Some(dir.path().join("drafts/Two.md").as_path()));
+        // The list follows: the file just opened comes first and is marked.
+        assert_eq!(titles(&rt.state), ["Two", "One"]);
+        assert!(rt.state.is_current(&rt.state.sidebar.items[0]));
+        assert_eq!(rt.state.sidebar.selected, None);
+    }
+
+    #[test]
+    fn folder_mode_lists_sorts_goes_in_and_up() {
+        let (mut rt, dir) = app_with(&[("One.md", "One")]);
+        let folder = dir.path().join("folder");
+        for (name, body) in [("Draft 10.txt", ""), ("Draft 2.MD", ""), ("notes.markdown", ""), ("image.png", ""), (".hidden.md", "")] {
+            std::fs::create_dir_all(&folder).unwrap();
+            std::fs::write(folder.join(name), body).unwrap();
+        }
+        std::fs::create_dir_all(folder.join("Sub/deeper")).unwrap();
+        std::fs::write(folder.join("Sub/inside.md"), "inside").unwrap();
+        run(&mut rt, Command::ToggleSidebar);
+        rt.update(|s, _| s.set_sidebar_folder(FolderRoot::Local(folder.clone())));
+        wait_for(&mut rt, "the listing", |s| !s.sidebar.items.is_empty());
+        let s = &rt.state;
+        assert_eq!(titles(s), ["Sub", "Draft 2.MD", "Draft 10.txt", "notes.markdown"]);
+        assert_eq!(s.sidebar.header(), "folder");
+        assert_eq!(s.prefs.folder_local(), Some(folder.to_string_lossy().as_ref()));
+        assert_eq!(s.prefs.sidebar_mode(), "folder");
+        // Rows without a subtitle are 28 tall; the list starts under the header.
+        let rect = |rt: &Runtime<App>, k: &str| rt.elements().into_iter().find(|e| e.key.as_deref() == Some(k)).unwrap().rect;
+        assert_eq!(rect(&rt, "sidebar-row-0")[3], 28.0);
+        assert_eq!(rect(&rt, LIST)[1], 96.0);
+        assert_eq!(rect(&rt, "sidebar-header"), [16.0, 74.0, 207.0, 16.0]);
+        assert_eq!(rect(&rt, "sidebar-refresh"), [227.0, 72.0, 20.0, 20.0]);
+
+        click(&mut rt, "sidebar-row-0");
+        wait_for(&mut rt, "the subfolder", |s| s.sidebar.items.len() == 3);
+        assert_eq!(titles(&rt.state), ["..", "deeper", "inside.md"]);
+        assert_eq!(rt.state.sidebar.header(), "folder › Sub");
+        assert_eq!(rt.state.sidebar.items[0].subtitle, None);
+        // Only the root is remembered.
+        assert_eq!(rt.state.prefs.folder_local(), Some(folder.to_string_lossy().as_ref()));
+
+        click(&mut rt, "sidebar-row-1");
+        wait_for(&mut rt, "the empty folder", |s| s.sidebar.message.is_some());
+        assert_eq!(titles(&rt.state), [".."]);
+        assert_eq!(rt.state.sidebar.message.as_deref(), Some("No Markdown or text files here."));
+
+        click(&mut rt, "sidebar-row-0");
+        wait_for(&mut rt, "going up", |s| s.sidebar.items.len() == 3);
+        click(&mut rt, "sidebar-row-2");
+        assert_eq!(rt.state.edit.text, "inside");
+
+        // A folder that went away shows the error, keeping "..".
+        std::fs::remove_dir_all(folder.join("Sub/deeper")).unwrap();
+        rt.update(|s, _| {
+            s.sidebar.folder_stack.push(FolderRoot::Local(folder.join("Sub/deeper")));
+            s.reload_sidebar();
+        });
+        wait_for(&mut rt, "the error", |s| s.sidebar.message.is_some());
+        assert_eq!(titles(&rt.state), [".."]);
+        assert_eq!(rt.state.sidebar.message.as_deref(), Some("The folder “deeper” doesn’t exist."));
+    }
+
+    #[test]
+    fn folder_mode_without_a_folder_offers_open_folder() {
+        let (mut rt, dir) = app_with(&[("One.md", "One")]);
+        run(&mut rt, Command::ToggleSidebar);
+        click(&mut rt, "sidebar-mode-folder");
+        assert_eq!(rt.state.sidebar.mode, Mode::Folder);
+        assert_eq!(rt.state.sidebar.message.as_deref(), Some("Open a folder to see its files here."));
+        assert!(rt.find("sidebar-header").is_none());
+        click(&mut rt, "sidebar-open-folder");
+        let (kind, options) = rt.file_dialog().expect("a folder dialog");
+        assert_eq!(kind, rune::FileDialogKind::Folder);
+        assert_eq!(options.directory, None);
+        rt.resolve_file_dialog(Some(dir.path().join("drafts"))).unwrap();
+        wait_for(&mut rt, "the folder", |s| s.sidebar.items.len() == 1);
+        assert_eq!(titles(&rt.state), ["One.md"]);
+        // The next dialog starts in the folder now shown.
+        run(&mut rt, Command::OpenFolder);
+        assert_eq!(rt.file_dialog().unwrap().1.directory.as_deref(), Some(dir.path().join("drafts").as_path()));
+        rt.resolve_file_dialog(None).unwrap();
+    }
+
+    #[test]
+    fn open_folder_pins_a_hidden_sidebar() {
+        let (mut rt, dir) = app_with(&[("One.md", "One")]);
+        run(&mut rt, Command::OpenFolder);
+        rt.resolve_file_dialog(Some(dir.path().join("drafts/../drafts"))).unwrap();
+        wait_for(&mut rt, "the folder", |s| s.sidebar.items.len() == 1);
+        assert!(rt.state.sidebar_visible);
+        assert_eq!(rt.state.sidebar.folder_stack, [FolderRoot::Local(dir.path().join("drafts"))]);
+    }
+
+    #[test]
+    fn keyboard_moves_type_selects_and_opens() {
+        let (mut rt, _dir) = app_with(&[("Apple.md", "a"), ("Banana.md", "b"), ("Cherry.md", "c")]);
+        run(&mut rt, Command::ToggleSidebar);
+        rt.update(|_, tx| tx.focus(LIST, false));
+        rt.frame(1.0 / 60.0);
+        key(&mut rt, Key::Down);
+        assert_eq!(rt.state.sidebar.selected, Some(0));
+        key(&mut rt, Key::Down);
+        key(&mut rt, Key::Down);
+        key(&mut rt, Key::Down);
+        assert_eq!(rt.state.sidebar.selected, Some(2));
+        key(&mut rt, Key::Up);
+        assert_eq!(rt.state.sidebar.selected, Some(1));
+        key(&mut rt, Key::Text("c".into()));
+        assert_eq!(rt.state.sidebar.selected, Some(2));
+        key(&mut rt, Key::Text("h".into()));
+        assert_eq!(rt.state.sidebar.selected, Some(2));
+        settle(&mut rt, 1.2);
+        key(&mut rt, Key::Text("b".into()));
+        assert_eq!(rt.state.sidebar.selected, Some(1));
+        key(&mut rt, Key::Enter);
+        assert_eq!(rt.state.edit.text, "b");
+        assert_eq!(rt.state.sidebar.selected, None);
+    }
+
+    #[test]
+    fn pointer_at_the_left_edge_peeks_and_moving_away_closes() {
+        let (mut rt, _dir) = app_with(&[("One.md", "One")]);
+        rt.pointer_move(400.0, 300.0);
+        settle(&mut rt, 0.1);
+        rt.pointer_move(3.0, 300.0);
+        settle(&mut rt, 0.08);
+        assert!(!rt.state.sidebar_peeking, "not before 0.12 s");
+        settle(&mut rt, 0.08);
+        assert!(rt.state.sidebar_peeking);
+        // Peeking doesn't take room from the editor.
+        assert_eq!(rt.state.frame().side_w, 0.0);
+        assert!(!rt.state.sidebar_visible);
+        assert_eq!(titles(&rt.state), ["One"]);
+        // Within 296 pt it stays; a move back cancels the close.
+        rt.pointer_move(290.0, 300.0);
+        settle(&mut rt, 0.5);
+        assert!(rt.state.sidebar_peeking);
+        rt.pointer_move(300.0, 300.0);
+        settle(&mut rt, 0.15);
+        rt.pointer_move(100.0, 300.0);
+        settle(&mut rt, 0.5);
+        assert!(rt.state.sidebar_peeking, "moving back cancels the close");
+        rt.pointer_move(500.0, 300.0);
+        settle(&mut rt, 0.2);
+        assert!(rt.state.sidebar_peeking, "closes 0.25 s after leaving");
+        settle(&mut rt, 0.1);
+        assert!(matches!(rt.state.sidebar.peek, Peek::Leaving(_)));
+        settle(&mut rt, 0.2);
+        assert!(!rt.state.sidebar_peeking);
+        assert_eq!(rt.state.sidebar.peek, Peek::Hidden);
+        assert!(rt.find("sidebar").is_none());
+    }
+
+    #[test]
+    fn a_brief_touch_of_the_edge_doesnt_peek() {
+        let (mut rt, _dir) = app_with(&[("One.md", "One")]);
+        rt.pointer_move(400.0, 300.0);
+        settle(&mut rt, 0.1);
+        rt.pointer_move(2.0, 300.0);
+        rt.frame(1.0 / 60.0);
+        rt.pointer_move(40.0, 300.0);
+        settle(&mut rt, 0.5);
+        assert!(!rt.state.sidebar_peeking);
+        // Nor does the edge of a window that isn't key.
+        rt.window_focus(false);
+        rt.pointer_move(2.0, 300.0);
+        settle(&mut rt, 0.5);
+        assert!(!rt.state.sidebar_peeking);
+    }
+
+    #[test]
+    fn toggling_while_peeking_pins_and_a_click_in_the_text_closes() {
+        let (mut rt, _dir) = app_with(&[("One.md", "One two three four five six seven eight nine ten")]);
+        rt.pointer_move(400.0, 300.0);
+        settle(&mut rt, 0.1);
+        rt.pointer_move(2.0, 300.0);
+        settle(&mut rt, 0.3);
+        assert!(rt.state.sidebar_peeking);
+        click(&mut rt, BUTTON);
+        assert!(!rt.state.sidebar_peeking && rt.state.sidebar_visible && rt.state.prefs.show_sidebar());
+        assert_eq!(rt.state.frame().side_w, 260.0);
+
+        run(&mut rt, Command::ToggleSidebar);
+        rt.pointer_move(400.0, 300.0);
+        settle(&mut rt, 0.1);
+        rt.pointer_move(2.0, 300.0);
+        settle(&mut rt, 0.3);
+        assert!(rt.state.sidebar_peeking);
+        // A click in the text (inside 296 pt, so not the moving-away rule) moves the caret:
+        // the peek slides away.
+        let at = (280.0, rt.state.field_rect[1] + rt.state.column().inset_y + 10.0);
+        rt.pointer_move(at.0, at.1);
+        settle(&mut rt, 0.5);
+        assert!(rt.state.sidebar_peeking);
+        let before = rt.state.edit.range();
+        rt.pointer_down(at.0, at.1);
+        rt.pointer_up(at.0, at.1);
+        settle(&mut rt, 0.4);
+        assert_ne!(rt.state.edit.range(), before, "the click placed the caret");
+        assert!(!rt.state.sidebar_peeking);
+    }
+
+    #[test]
+    fn window_coming_back_relists_a_pinned_sidebar() {
+        let (mut rt, dir) = app_with(&[("One.md", "One")]);
+        run(&mut rt, Command::ToggleSidebar);
+        std::fs::write(dir.path().join("drafts/New.md"), "new").unwrap();
+        rt.window_focus(false);
+        rt.frame(1.0 / 60.0);
+        assert_eq!(rt.state.sidebar.items.len(), 1);
+        rt.window_focus(true);
+        rt.frame(1.0 / 60.0);
+        assert_eq!(rt.state.sidebar.items.len(), 2);
+    }
+
+    #[test]
+    fn mode_and_folder_come_back_from_preferences() {
+        let dir = tempfile::tempdir().unwrap();
+        let support = dir.path().join("support");
+        std::fs::create_dir_all(&support).unwrap();
+        std::fs::write(support.join("preferences.json"), r#"{"showSidebar": true, "sidebarMode": "folder", "folderRemote": "ssh://me@box:2222/srv/notes"}"#).unwrap();
+        let prefs = crate::prefs::Prefs::load(&support);
+        let sb = Sidebar::new(&prefs);
+        assert_eq!(sb.mode, Mode::Folder);
+        assert_eq!(sb.folder_stack, [FolderRoot::Remote(RemoteLocation::new("me@box", Some(2222), "/srv/notes"))]);
+        assert!(prefs.show_sidebar());
+    }
 
     #[test]
     fn finder_order_compares_numbers_by_value_and_ignores_case() {
