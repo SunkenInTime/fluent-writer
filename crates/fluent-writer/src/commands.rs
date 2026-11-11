@@ -299,6 +299,8 @@ impl App {
             C::SmallerText => size > TEXT_SIZES[0],
             C::Reveal => self.draft.remote().is_none() && (self.draft.path().is_some() || !self.draft.body.is_empty()),
             C::CopyForTwitter | C::ShowAssist | C::AskCodex | C::AskClaude | C::AddComment => !self.edit.text.is_empty(),
+            C::OlderVersion => !self.notes.versions().is_empty(),
+            C::NewerVersion | C::UseThisVersion => self.preview.is_active(),
             _ => true,
         }
     }
@@ -431,6 +433,12 @@ impl App {
             }
             C::Zoom => tx.toggle_maximized(),
             C::Minimize => tx.minimize(),
+            C::AddComment => self.add_comment_command(tx),
+            C::ShowComments => self.show_assist_tab(crate::notes::AssistTab::Comments),
+            C::ShowVersions => self.show_assist_tab(crate::notes::AssistTab::Versions),
+            C::OlderVersion => self.preview_step(-1, tx),
+            C::NewerVersion => self.preview_step(1, tx),
+            C::UseThisVersion => self.preview_use(tx),
             other => self.flash_message(format!("{other:?} isn't built yet"), tx),
         }
     }

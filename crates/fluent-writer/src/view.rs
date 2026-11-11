@@ -38,8 +38,10 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
         .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
         .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
+        .child(crate::version_preview::view(s, &p))
         .child(top_bar)
         .child(footer(s, &p, chrome, fade))
+        .child(crate::comment_composer::view(s, &p))
 }
 
 fn draft(s: &App, p: &Palette) -> El {
@@ -50,6 +52,7 @@ fn draft(s: &App, p: &Palette) -> El {
     if let Some(focus) = s.focus_range() {
         styled.spans.extend(styler::dimming(s.edit.text.len(), &focus, p));
     }
+    styled.spans.extend(s.notes.highlights(s.edit.text.len(), p));
     let field = text_input(&s.edit, draft_font(m.font_size))
         .key(DRAFT)
         .label("Draft")
