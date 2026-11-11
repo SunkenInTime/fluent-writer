@@ -50,6 +50,8 @@ fn chars(text: &str, r: &Option<Range<usize>>) -> f32 {
 }
 
 /// Styles every line. `space_after[i]` is the room to leave under line `i` (an image preview).
+/// A line with room under it is an image line: its Markdown reads as a caption-like label
+/// rather than prose.
 pub fn style(text: &str, lines: &[MarkdownLine], m: &Metrics, p: &Palette, space_after: &dyn Fn(usize) -> f32) -> Styled {
     let mut out = Styled::default();
     let hang = m.hang_width();
@@ -94,6 +96,9 @@ pub fn style(text: &str, lines: &[MarkdownLine], m: &Metrics, p: &Palette, space
         }
         for span in &line.inlines {
             style_inline(span, p, &mut out);
+        }
+        if after > 0.0 && line.range.start < line.range.end {
+            out.spans.push(Span::new(line.range.start, line.range.end).color(p.quiet));
         }
     }
     out

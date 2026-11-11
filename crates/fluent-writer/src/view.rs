@@ -37,16 +37,16 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         .fill(p.canvas)
         .on_layout(|s: &mut App, r| s.window = (r[2], r[3]))
         .on_pointer_move(|s: &mut App, at| s.pointer = (at.x, at.y))
-        .child(draft(s, &p).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
+          .child(draft(s, &p, cx).absolute(f.editor_x(), TOP_BAR_HEIGHT).size(w, (h - TOP_BAR_HEIGHT).max(0.0)))
         .child(top_bar)
         .child(footer(s, &p, chrome, fade))
 }
 
-fn draft(s: &App, p: &Palette) -> El {
+fn draft(s: &App, p: &Palette, cx: &mut Cx<App>) -> El {
     let c = s.column();
     let (vw, vh) = s.visible();
     let m = &s.metrics;
-    let mut styled = styler::style(&s.edit.text, &s.lines, m, p, &|_| 0.0);
+    let mut styled = styler::style(&s.edit.text, &s.lines, m, p, &|line| s.images.space_after(line, s.image_gap()));
     if let Some(focus) = s.focus_range() {
         styled.spans.extend(styler::dimming(s.edit.text.len(), &focus, p));
     }
@@ -68,13 +68,24 @@ fn draft(s: &App, p: &Palette) -> El {
         .pb(c.inset_y + c.bottom_overscroll)
         .on_edit(|s: &mut App| &mut s.edit)
         .on_input_change(|s: &mut App, tx| s.text_did_change(tx))
+        .text_highlights(s.image_line_marks())
         .on_input_key(crate::keys::draft_key)
+        .on_input_paste(|s: &mut App, content, tx| {
+            // Text wins when there is any, so pasting from a web page still pastes its words.
+            let png = content.image().filter(|_| content.text().is_empty()).map(|i| i.png().to_vec());
+            png.is_some_and(|png| s.insert_images(&[], Some(&png), None, tx))
+        })
+        .on_drop_files(|s: &mut App, files, tx| {
+            s.insert_images(files, None, None, tx);
+        })
+        .accepts_extensions(&writer_core::markdown_images::IMAGE_EXTENSIONS)
         .on_submit(|s: &mut App, tx| {
             s.edit.insert("\n");
             s.text_did_change(tx);
         })
         .on_layout(|s: &mut App, r| s.field_rect = r);
-    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(field)
+    let page = el().w_full().child(field).children(crate::images::view(s, p, cx));
+    col().key(SCROLL).scroll(ScrollSpec { stick_bottom: false }).child(page)
 }
 
 /// Status on the left, counts on the right, focus mode centred only when there's room for it.

@@ -100,3 +100,32 @@ fn typewriter_focus_keeps_the_caret_line_in_the_middle() {
     let caret_middle = caret[1] + caret[3] / 2.0;
     assert!((caret_middle - middle).abs() <= rt.state.metrics.line_height / 2.0, "caret at {caret_middle}, middle {middle}");
 }
+
+#[test]
+fn an_image_line_gets_room_under_it_and_dropped_files_are_copied_beside_the_draft() {
+    let (mut rt, dir) = harness("Before.\n");
+    // A draft with no file yet keeps its images in the drafts folder.
+    let source = dir.path().join("elsewhere/My Shot.png");
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    let png = image::RgbaImage::from_pixel(40, 20, image::Rgba([200, 30, 30, 255]));
+    png.save(&source).unwrap();
+    rt.update(|s, tx| {
+        assert!(s.insert_images(&[source.clone()], None, None, tx));
+    });
+    settle(&mut rt, 0.2);
+    assert_eq!(rt.state.edit.text, "Before.\n![My Shot](images/My%20Shot.png)");
+    assert!(dir.path().join("drafts/images/My Shot.png").exists());
+    assert_eq!(rt.state.status().0, "Image added · copied to the images folder beside this draft");
+    let block = &rt.state.images.blocks[0];
+    assert!(matches!(block.content, crate::images::Content::Placeholder { .. }), "no image cache without a window's waker");
+    assert_eq!(block.size, (420.0, 40.0));
+    let gap = rt.state.image_gap();
+    assert_eq!(rt.state.images.space_after(block.line, gap), 40.0 + gap * 2.0);
+    // The preview sits under its line, at the prose edge.
+    let ([x, y, w, h], _) = rt.presented("image-0").expect("the preview is drawn");
+    let c = rt.state.column();
+    assert!((x - (c.inset_x + rt.state.metrics.hang_width())).abs() < 0.1);
+    assert_eq!((w, h), (420.0, 40.0));
+    let line_bottom = crate::app::TOP_BAR_HEIGHT + c.inset_y + rt.state.metrics.line_height * 2.0;
+    assert!((y - (line_bottom + gap)).abs() <= 1.0, "preview at {y}, line ends at {line_bottom}");
+}

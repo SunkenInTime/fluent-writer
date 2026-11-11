@@ -46,3 +46,35 @@ pub fn grouped(n: usize) -> String {
     }
     out
 }
+
+/// Opens `path` with the system's default app for it.
+pub fn open_file(path: &Path) {
+    #[cfg(target_os = "macos")]
+    let _ = Command::new("open").arg(path).spawn();
+    #[cfg(target_os = "windows")]
+    let _ = Command::new("explorer").arg(path).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let _ = Command::new("xdg-open").arg(path).spawn();
+}
+
+/// `path` with the home folder written as `~`.
+pub fn abbreviate_home(path: &Path) -> String {
+    if let Some(home) = std::env::home_dir()
+        && let Ok(rest) = path.strip_prefix(&home)
+    {
+        return format!("~{}{}", std::path::MAIN_SEPARATOR, rest.display());
+    }
+    path.display().to_string()
+}
+
+/// Puts the image at `source` on the clipboard as an image.
+pub fn copy_image(source: &writer_core::ImageSource) -> Result<(), String> {
+    let writer_core::ImageSource::File(path) = source else {
+        return Err("only image files can be copied".into());
+    };
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let decoded = image::load_from_memory(&bytes).map_err(|e| e.to_string())?.to_rgba8();
+    let (width, height) = (decoded.width() as usize, decoded.height() as usize);
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_image(arboard::ImageData { width, height, bytes: decoded.into_raw().into() }).map_err(|e| e.to_string())
+}

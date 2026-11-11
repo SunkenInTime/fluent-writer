@@ -429,6 +429,7 @@ impl App {
                 let on = !self.prefs.spell_check();
                 self.prefs.set_spell_check(on);
             }
+            C::Image => self.insert_image_from_file(tx),
             C::Zoom => tx.toggle_maximized(),
             C::Minimize => tx.minimize(),
             other => self.flash_message(format!("{other:?} isn't built yet"), tx),

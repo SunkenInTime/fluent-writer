@@ -2,6 +2,7 @@
 
 mod app;
 mod commands;
+mod images;
 mod keys;
 mod platform;
 mod prefs;
@@ -71,6 +72,7 @@ fn main() {
         min_size: Some((420.0, 320.0)),
         poll: Some(|s, clock, tx| s.poll(clock, tx)),
         on_key: Some(keys::window_key),
+        setup: Some(|s, waker| s.images.setup(waker)),
         ..AppSpec::new("Fluent Writer", (1060.0, 760.0), init, view::view)
     });
 }

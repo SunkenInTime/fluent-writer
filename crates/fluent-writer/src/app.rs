@@ -59,6 +59,9 @@ pub const SIDEBAR_WIDTH: f32 = 260.0;
 pub const ASSIST_WIDTH: f32 = 380.0;
 
 pub struct App {
+    pub images: crate::images::Images,
+    /// Device pixels per point of the window, as the last view saw it.
+    pub scale: f32,
     /// The sidebar is pinned open (not just peeking over the text).
     pub sidebar_visible: bool,
     /// The sidebar is showing over the text because the pointer is at the left edge.
@@ -101,6 +104,7 @@ pub struct App {
     /// A draft was just loaded: start its scroll view from the top before finding the caret.
     scroll_reset: bool,
     typed_since_poll: bool,
+    image_room_seen: Option<crate::images::Room>,
 }
 
 fn after(tx: &mut Tx, now: f64, seconds: f64) -> Option<f64> {
@@ -119,6 +123,8 @@ fn due(at: &mut Option<f64>, now: f64) -> bool {
 impl App {
     pub fn new(library: DraftLibrary, prefs: Prefs, document: DraftDocument) -> App {
         let mut app = App {
+            images: crate::images::Images::default(),
+            scale: 2.0,
             sidebar_visible: prefs.show_sidebar(),
             sidebar_peeking: false,
             assist_visible: false,
@@ -148,6 +154,7 @@ impl App {
             recenter_delay: 0,
             scroll_reset: false,
             typed_since_poll: false,
+            image_room_seen: None,
         };
         app.load(document);
         app
@@ -285,6 +292,7 @@ impl App {
 
     fn reparse(&mut self) {
         self.lines = markdown::parse(&self.edit.text);
+        self.refresh_images();
     }
 
     pub fn fence_count(&self) -> usize {
@@ -470,6 +478,13 @@ impl App {
     pub fn poll(&mut self, clock: f64, tx: &mut Tx) -> bool {
         self.now = clock;
         let mut changed = false;
+        // Previews are sized against the column, so they follow the window and the text size.
+        let room = self.image_room();
+        if self.images.poll() || self.image_room_seen != Some(room) {
+            self.image_room_seen = Some(room);
+            self.refresh_images();
+            changed = true;
+        }
         let range = self.edit.range();
         if range != self.last_selection {
             self.last_selection = range;
