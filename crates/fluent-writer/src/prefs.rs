@@ -26,7 +26,10 @@ struct Stored {
     folder_remote: Option<String>,
     #[serde(rename = "lastSSHLocation")]
     last_ssh_location: Option<String>,
-    window_frame: Option<[f64; 4]>,
+    /// The window's content rect in screen points and the scale it drew at: x, y, w, h, scale.
+    window_frame: Option<[f64; 5]>,
+    /// How far the window's title bar and borders put its content from its outer corner.
+    window_decoration: Option<[f64; 2]>,
 }
 
 /// The app's settings, read once at launch and written on every change.
@@ -178,6 +181,22 @@ impl Prefs {
     }
     pub fn set_last_ssh_location(&mut self, s: &str) {
         self.stored.last_ssh_location = Some(s.into());
+        self.save();
+    }
+
+    pub fn window_frame(&self) -> Option<[f64; 5]> {
+        self.stored.window_frame
+    }
+    pub fn set_window_frame(&mut self, frame: [f64; 5]) {
+        self.stored.window_frame = Some(frame);
+        self.save();
+    }
+
+    pub fn window_decoration(&self) -> Option<[f64; 2]> {
+        self.stored.window_decoration
+    }
+    pub fn set_window_decoration(&mut self, offset: [f64; 2]) {
+        self.stored.window_decoration = Some(offset);
         self.save();
     }
 }

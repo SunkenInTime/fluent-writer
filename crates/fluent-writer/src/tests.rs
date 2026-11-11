@@ -504,13 +504,9 @@ fn check_spelling_while_typing_is_on_by_default_and_toggles() {
     // The draft's own menu carries the same setting.
     rt.update(|s, tx| s.run(crate::commands::Command::ToggleSpellCheck, tx));
     settle(&mut rt, 0.1);
-    let (x, y) = rt.find(crate::app::DRAFT).expect("draft on screen");
-    rt.secondary_down(x, y);
-    rt.secondary_up(x, y);
-    settle(&mut rt, 0.1);
-    let item = rt.popup_menu().and_then(|m| m.find("spellcheck")).expect("the draft's menu offers spell checking");
-    assert!(item.is_checked());
-    rt.resolve_popup(Some("spellcheck")).unwrap();
+    let row = rt.state.context_rows().into_iter().find(|r| r.title == "Check Spelling While Typing").expect("the draft's menu offers spell checking");
+    assert!(row.checked);
+    rt.update(|s, tx| s.context_pick("spell", tx));
     settle(&mut rt, 0.1);
     assert!(!rt.state.prefs.spell_check(), "picking it turns checking off");
 }

@@ -297,6 +297,8 @@ impl App {
             C::ToggleFocus => format!("Turn {} Focus On", focus_name(self.prefs.last_dimming_focus())),
             C::CopyForTwitter if self.has_selection() => "Copy Selection for Twitter".into(),
             C::Reveal => crate::platform::REVEAL_TITLE.into(),
+            C::ToggleSidebar if self.sidebar_visible => "Hide Sidebar".into(),
+            C::FullScreen if self.win.full_screen => "Exit Full Screen".into(),
             _ => fallback.into(),
         }
     }
@@ -365,8 +367,13 @@ impl App {
         };
         let text = &self.edit.text;
         match command {
-            C::Quit | C::Close => tx.close_window(),
+            C::Quit | C::Close => self.quit(tx),
+            C::About => self.show_alert(crate::ui::Alert::new(crate::app_name()).informative("Version 0.2.0 (2)")),
             C::NewDraft => self.new_draft(tx),
+            C::OpenOtherFile => self.browse_for_file(tx),
+            C::SaveAs => self.save_as(tx, None),
+            C::Rename => self.begin_title_edit(true, tx),
+            C::FullScreen => self.toggle_full_screen(tx),
             C::Save => {
                 if !self.draft.is_empty_untitled() && self.flush() {
                     self.flash_message("Saved", tx);
