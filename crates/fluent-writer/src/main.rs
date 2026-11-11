@@ -1,9 +1,13 @@
 //! Fluent Writer: a quiet writing app built around focus.
 
 mod app;
+mod assist;
+mod assist_lists;
+mod assist_view;
 mod chrome;
 mod commands;
 mod comment_composer;
+mod connect_agent;
 mod images;
 mod editing;
 mod find;

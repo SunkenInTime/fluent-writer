@@ -30,6 +30,8 @@ struct Stored {
     window_frame: Option<[f64; 5]>,
     /// How far the window's title bar and borders put its content from its outer corner.
     window_decoration: Option<[f64; 2]>,
+    #[serde(rename = "assist.provider")]
+    assist_provider: Option<String>,
 }
 
 /// The app's settings, read once at launch and written on every change.
@@ -174,6 +176,15 @@ impl Prefs {
     pub fn set_folder(&mut self, local: Option<String>, remote: Option<String>) {
         self.stored.folder_local = local;
         self.stored.folder_remote = remote;
+        self.save();
+    }
+
+    /// Assist's provider, `codex` or `claude`; Codex unless set. `AssistController.swift:138`
+    pub fn assist_provider(&self) -> writer_agents::AgentProvider {
+        self.stored.assist_provider.as_deref().and_then(|p| p.parse().ok()).unwrap_or_default()
+    }
+    pub fn set_assist_provider(&mut self, raw: &str) {
+        self.stored.assist_provider = Some(raw.into());
         self.save();
     }
 

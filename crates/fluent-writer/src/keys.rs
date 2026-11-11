@@ -20,6 +20,10 @@ pub fn draft_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     if ev.key == Key::Escape && s.clear_active_comment() {
         return true;
     }
+    if ev.key == Key::Escape && s.assist_visible {
+        s.assist_close(tx);
+        return true;
+    }
     s.user_is_typing();
     if crate::editing::draft_key(s, ev, tx) || crate::substitutions::on_typed(s, ev, tx) {
         return true;

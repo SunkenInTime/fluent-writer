@@ -257,32 +257,34 @@ impl App {
     }
 
     /// The Swift `togglePanel`: close the Assist panel if it is open on `tab`, else open it on
-    /// `tab` keeping the provider. The Assist panel isn't built yet, so this runs the menu
-    /// command that opens each tab. The Assist port replaces this body (note the Assist button
-    /// opens the panel even for an empty draft, where Show Assist is disabled).
+    /// `tab` keeping the provider. The Assist button opens the panel even for an empty draft,
+    /// where Show Assist is disabled.
     pub fn toggle_panel(&mut self, tab: PanelTab, tx: &mut Tx) {
-        let command = match tab {
-            PanelTab::Ask => Command::ShowAssist,
-            PanelTab::Comments => Command::ShowComments,
-            PanelTab::Versions => Command::ShowVersions,
+        let tab = match tab {
+            PanelTab::Ask => crate::notes::AssistTab::Ask,
+            PanelTab::Comments => crate::notes::AssistTab::Comments,
+            PanelTab::Versions => crate::notes::AssistTab::Versions,
         };
-        self.run(command, tx);
+        self.assist_toggle_tab(tab, tx);
     }
 
-    /// Which Assist tab is open, if the panel is. The Assist port fills this in.
+    /// Which Assist tab is open, if the panel is.
     pub fn open_panel_tab(&self) -> Option<PanelTab> {
-        None
+        self.assist_visible.then_some(match self.notes.assist_tab {
+            crate::notes::AssistTab::Ask => PanelTab::Ask,
+            crate::notes::AssistTab::Comments => PanelTab::Comments,
+            crate::notes::AssistTab::Versions => PanelTab::Versions,
+        })
     }
 
-    /// Open comments, detached ones included, for the Comments badge. The comments port fills
-    /// this in.
+    /// Open comments, detached ones included, for the Comments badge.
     pub fn open_comment_count(&self) -> usize {
-        0
+        self.notes.open_count()
     }
 
-    /// Whether a version preview is showing. The versions port fills this in.
+    /// Whether a version preview is showing.
     pub fn previewing_version(&self) -> bool {
-        false
+        self.preview.is_active()
     }
 
     /// Whether `b` shows as active: tinted, on its plate.
