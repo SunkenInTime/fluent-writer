@@ -60,6 +60,7 @@ final class RemoteTests: XCTestCase {
         // Outputs captured from Windows OpenSSH (cmd, and PowerShell run with -c) and a Linux sshd.
         XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe Windows_NT $PSHOME\r\n"), .cmd)
         XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe\r\n%OS%\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1.0\r\n"), .powershell)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe\r\n%OS%\r\nC:\\Tools\\pwsh\\7\r\n"), .powershell, "portable install")
         XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe %OS%\n"), .posix)
         XCTAssertEqual(SSHTransport.parseProbe(""), .posix)
     }

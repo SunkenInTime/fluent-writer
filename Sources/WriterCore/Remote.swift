@@ -174,8 +174,8 @@ public struct SSHTransport: Sendable {
     static func parseProbe(_ output: String) -> RemoteShell {
         let lines = output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
         if lines.contains("fluent-writer-probe Windows_NT $PSHOME") { return .cmd }
-        if let i = lines.firstIndex(of: "fluent-writer-probe"), i + 2 < lines.count, lines[i + 1] == "%OS%",
-           lines[i + 2].localizedCaseInsensitiveContains("PowerShell") {
+        // sh prints the words on one line, so the marker and `%OS%` on lines of their own, followed by $PSHOME, mean PowerShell.
+        if let i = lines.firstIndex(of: "fluent-writer-probe"), i + 2 < lines.count, lines[i + 1] == "%OS%", !lines[i + 2].isEmpty {
             return .powershell
         }
         return .posix
