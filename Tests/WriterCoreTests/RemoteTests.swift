@@ -58,11 +58,16 @@ final class RemoteTests: XCTestCase {
 
     func testProbeTellsShellsApart() {
         // Outputs captured from Windows OpenSSH (cmd, and PowerShell run with -c) and a Linux sshd.
-        XCTAssertEqual(SSHTransport.parseProbe("Windows_NT $PSHOME\r\n"), .cmd)
-        XCTAssertEqual(SSHTransport.parseProbe("%OS%\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1.0\r\n"), .powershell)
-        XCTAssertEqual(SSHTransport.parseProbe("%OS%\n"), .posix)
-        XCTAssertEqual(SSHTransport.parseProbe("welcome to box\n%OS%\n"), .posix)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe Windows_NT $PSHOME\r\n"), .cmd)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe\r\n%OS%\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1.0\r\n"), .powershell)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe %OS%\n"), .posix)
         XCTAssertEqual(SSHTransport.parseProbe(""), .posix)
+    }
+
+    func testProbeIgnoresBannersAndLogoutMessages() {
+        XCTAssertEqual(SSHTransport.parseProbe("Windows_NT build host\nfluent-writer-probe %OS%\n"), .posix)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe %OS%\nlogout\n"), .posix)
+        XCTAssertEqual(SSHTransport.parseProbe("%OS%\nlogout\n"), .posix)
     }
 
     func testPosixCommandsAreSentUnchanged() {

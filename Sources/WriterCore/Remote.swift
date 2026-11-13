@@ -152,7 +152,8 @@ public struct SSHTransport: Sendable {
 
     /// Asks the host once which shell its sshd runs commands in, and remembers the answer for this session.
     public func shell(for loc: RemoteLocation) throws -> RemoteShell {
-        let key = "\(loc.host):\(loc.port ?? 22)"
+        // An omitted port can mean a different one from ~/.ssh/config, so it keys separately from an explicit 22.
+        let key = "\(loc.host):\(loc.port.map(String.init) ?? "")"
         if let known = SSHTransport.shells.value(for: key) { return known }
         let result = try launch(loc, SSHTransport.probeCommand, input: nil)
         // 255 is ssh's own failure (unreachable, refused login). Any other failure means the probe itself
@@ -165,13 +166,18 @@ public struct SSHTransport: Sendable {
         return shell
     }
 
-    /// cmd prints `Windows_NT $PSHOME`, PowerShell prints `%OS%` and then its install folder, and sh prints `%OS%`.
-    static let probeCommand = "echo %OS% $PSHOME"
+    /// cmd prints `fluent-writer-probe Windows_NT $PSHOME` on one line, PowerShell prints each word on its own line with
+    /// `%OS%` unexpanded and `$PSHOME` as its install folder, and sh prints `fluent-writer-probe %OS%`.
+    static let probeCommand = "echo fluent-writer-probe %OS% $PSHOME"
 
+    /// Only the probe's own lines count, so a login banner or logout message can't make a POSIX host look like Windows.
     static func parseProbe(_ output: String) -> RemoteShell {
-        let lines = output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        if lines.contains(where: { $0.hasPrefix("Windows_NT") }) { return .cmd }
-        if let i = lines.lastIndex(of: "%OS%"), i < lines.count - 1 { return .powershell }
+        let lines = output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        if lines.contains("fluent-writer-probe Windows_NT $PSHOME") { return .cmd }
+        if let i = lines.firstIndex(of: "fluent-writer-probe"), i + 2 < lines.count, lines[i + 1] == "%OS%",
+           lines[i + 2].localizedCaseInsensitiveContains("PowerShell") {
+            return .powershell
+        }
         return .posix
     }
 
