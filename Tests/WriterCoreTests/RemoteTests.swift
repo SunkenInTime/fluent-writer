@@ -56,6 +56,44 @@ final class RemoteTests: XCTestCase {
         ])
     }
 
+    func testProbeTellsShellsApart() {
+        // Outputs captured from Windows OpenSSH (cmd, and PowerShell run with -c) and a Linux sshd.
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe Windows_NT $PSHOME\r\n"), .cmd)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe\r\n%OS%\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1.0\r\n"), .powershell)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe\r\n%OS%\r\nC:\\Tools\\pwsh\\7\r\n"), .powershell, "portable install")
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe %OS%\n"), .posix)
+        XCTAssertEqual(SSHTransport.parseProbe(""), .posix)
+    }
+
+    func testProbeIgnoresBannersAndLogoutMessages() {
+        XCTAssertEqual(SSHTransport.parseProbe("Windows_NT build host\nfluent-writer-probe %OS%\n"), .posix)
+        XCTAssertEqual(SSHTransport.parseProbe("fluent-writer-probe %OS%\nlogout\n"), .posix)
+        XCTAssertEqual(SSHTransport.parseProbe("%OS%\nlogout\n"), .posix)
+    }
+
+    func testPosixCommandsAreSentUnchanged() {
+        let command = "if [ -d '/a b' ]; then echo d; fi"
+        XCTAssertEqual(SSHTransport.wrap(command, for: .posix), command)
+    }
+
+    func testWindowsCommandsRunThroughGitBashEncoded() throws {
+        let command = "cat > 'E:/w/it'\\''s.md.tmp' && mv -f -- 'E:/w/it'\\''s.md.tmp' ~/'a b.md' || { rm -f -- x; exit 1; }"
+        for shell in [RemoteShell.cmd, .powershell] {
+            let wrapped = SSHTransport.wrap(command, for: shell)
+            XCTAssertTrue(wrapped.contains("Git\\bin\\bash.exe"))
+            let encoded = try XCTUnwrap(wrapped.components(separatedBy: "echo ").last?.components(separatedBy: "|").first)
+            XCTAssertEqual(String(decoding: try XCTUnwrap(Data(base64Encoded: encoded)), as: UTF8.self), command)
+            XCTAssertNil(encoded.rangeOfCharacter(from: CharacterSet(charactersIn: "\"'%&|<>^ ")))
+        }
+        XCTAssertFalse(SSHTransport.wrap(command, for: .powershell).contains("\""))
+    }
+
+    func testMissingGitBashIsExplained() {
+        let message = SSHTransport.describeFailure("The system cannot find the path specified.\r\n", host: "pc", status: 1, shell: .cmd)
+        XCTAssertTrue(message.contains("Git for Windows"))
+        XCTAssertEqual(SSHTransport.describeFailure("cat: x: No such file or directory\n", host: "pc", status: 1, shell: .cmd), "pc: cat: x: No such file or directory")
+    }
+
     func testMirrorPathStaysInsideSupportDirectory() throws {
         let lib = try makeLibrary()
         let mirror = lib.mirrorURL(for: RemoteLocation(host: "me@box", port: 22, path: "/../../etc/passwd"))

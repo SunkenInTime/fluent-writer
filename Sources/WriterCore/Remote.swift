@@ -82,6 +82,9 @@ public struct RemoteEntry: Hashable, Sendable {
 
 public enum RemoteKind: Sendable { case file, directory, missing }
 
+/// The shell a host's sshd runs commands in. Windows OpenSSH uses cmd unless DefaultShell says otherwise.
+public enum RemoteShell: Sendable { case posix, cmd, powershell }
+
 /// Runs `ssh` non-interactively. Login must work without a prompt (keys, agent, or an existing control master).
 public struct SSHTransport: Sendable {
     public var executable: String
@@ -136,8 +139,67 @@ public struct SSHTransport: Sendable {
         }
     }
 
+    /// Runs a POSIX shell command on the host, through Git Bash when the host is Windows.
     @discardableResult
     func run(_ loc: RemoteLocation, _ command: String, input: Data? = nil) throws -> Data {
+        let shell = try shell(for: loc)
+        let result = try launch(loc, SSHTransport.wrap(command, for: shell), input: input)
+        guard result.status == 0 else {
+            throw DraftStoreError(message: SSHTransport.describeFailure(String(decoding: result.err, as: UTF8.self), host: loc.hostName, status: result.status, shell: shell))
+        }
+        return result.out
+    }
+
+    /// Asks the host once which shell its sshd runs commands in, and remembers the answer for this session.
+    public func shell(for loc: RemoteLocation) throws -> RemoteShell {
+        // An omitted port can mean a different one from ~/.ssh/config, so it keys separately from an explicit 22.
+        let key = "\(loc.host):\(loc.port.map(String.init) ?? "")"
+        if let known = SSHTransport.shells.value(for: key) { return known }
+        let result = try launch(loc, SSHTransport.probeCommand, input: nil)
+        // 255 is ssh's own failure (unreachable, refused login). Any other failure means the probe itself
+        // didn't parse, as in csh, so treat the host as POSIX the way every host was treated before.
+        if result.status == 255 {
+            throw DraftStoreError(message: SSHTransport.describeFailure(String(decoding: result.err, as: UTF8.self), host: loc.hostName, status: result.status))
+        }
+        let shell = result.status == 0 ? SSHTransport.parseProbe(String(decoding: result.out, as: UTF8.self)) : .posix
+        SSHTransport.shells.set(shell, for: key)
+        return shell
+    }
+
+    /// cmd prints `fluent-writer-probe Windows_NT $PSHOME` on one line, PowerShell prints each word on its own line with
+    /// `%OS%` unexpanded and `$PSHOME` as its install folder, and sh prints `fluent-writer-probe %OS%`.
+    static let probeCommand = "echo fluent-writer-probe %OS% $PSHOME"
+
+    /// Only the probe's own lines count, so a login banner or logout message can't make a POSIX host look like Windows.
+    static func parseProbe(_ output: String) -> RemoteShell {
+        let lines = output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        if lines.contains("fluent-writer-probe Windows_NT $PSHOME") { return .cmd }
+        // sh prints the words on one line, so the marker and `%OS%` on lines of their own, followed by $PSHOME, mean PowerShell.
+        if let i = lines.firstIndex(of: "fluent-writer-probe"), i + 2 < lines.count, lines[i + 1] == "%OS%", !lines[i + 2].isEmpty {
+            return .powershell
+        }
+        return .posix
+    }
+
+    /// On Windows, hands the command to Git for Windows' bash, base64-encoded so neither cmd, PowerShell nor the
+    /// Windows argument parser touches its quotes, pipes or `&&`. `source <(...)` leaves stdin free for `write`'s data.
+    /// The full path keeps `bash` from resolving to WSL's `System32\bash.exe`.
+    static func wrap(_ command: String, for shell: RemoteShell) -> String {
+        let encoded = Data(command.utf8).base64EncodedString()
+        switch shell {
+        case .posix:
+            return command
+        case .cmd:
+            return "\"%ProgramFiles%\\Git\\bin\\bash.exe\" -c \"source <(echo \(encoded)|base64 -d)\""
+        case .powershell:
+            // No double quotes: OpenSSH for Windows passes the command line on to PowerShell, which can drop them.
+            return "& (Join-Path $env:ProgramFiles 'Git\\bin\\bash.exe') -c 'source <(echo \(encoded)|base64 -d)'"
+        }
+    }
+
+    private static let shells = ShellCache()
+
+    private func launch(_ loc: RemoteLocation, _ command: String, input: Data?) throws -> (status: Int32, out: Data, err: Data) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments(for: loc, command: command)
@@ -164,13 +226,10 @@ public struct SSHTransport: Sendable {
         let data = out.fileHandleForReading.readDataToEndOfFile()
         group.wait()
         process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw DraftStoreError(message: SSHTransport.describeFailure(String(decoding: errBox.data, as: UTF8.self), host: loc.hostName, status: process.terminationStatus))
-        }
-        return data
+        return (process.terminationStatus, data, errBox.data)
     }
 
-    static func describeFailure(_ stderr: String, host: String, status: Int32) -> String {
+    static func describeFailure(_ stderr: String, host: String, status: Int32, shell: RemoteShell = .posix) -> String {
         let lines = stderr.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.hasPrefix("Warning: Permanently added") }
         let detail = lines.last?.trimmingCharacters(in: .whitespaces) ?? ""
         if detail.contains("Permission denied") {
@@ -179,12 +238,24 @@ public struct SSHTransport: Sendable {
         if detail.contains("Host key verification failed") {
             return "\(host) isn't a known host yet. Run `ssh \(host)` in Terminal once to trust it."
         }
+        // What cmd and PowerShell say when Git Bash isn't where `wrap` looks for it.
+        if shell != .posix, stderr.contains("cannot find the path specified") || stderr.contains("is not recognized") {
+            return "\(host) runs Windows. Fluent Writer needs Git for Windows installed in Program Files\\Git to open files there."
+        }
         if detail.isEmpty { return "ssh to \(host) failed (exit \(status))." }
         return "\(host): \(detail)"
     }
 }
 
 private final class DataBox: @unchecked Sendable { var data = Data() }
+
+private final class ShellCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var shells: [String: RemoteShell] = [:]
+
+    func value(for key: String) -> RemoteShell? { lock.withLock { shells[key] } }
+    func set(_ shell: RemoteShell, for key: String) { lock.withLock { shells[key] = shell } }
+}
 
 extension RemoteLocation {
     func appendingSuffix(_ suffix: String) -> RemoteLocation {
